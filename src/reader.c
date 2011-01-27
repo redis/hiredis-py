@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "reader.h"
 
 static void Reader_dealloc(hiredis_ReaderObject *self);
@@ -53,18 +54,50 @@ PyTypeObject hiredis_ReaderType = {
     Reader_new,                   /*tp_new */
 };
 
+static void *tryParentize(const redisReadTask *task, PyObject *obj) {
+    PyObject *parent;
+    if (task && task->parent) {
+        parent = (PyObject*)task->parent->obj;
+        assert(parent->ob_type == PyList_Type);
+        PyList_SET_ITEM(parent, task->idx, obj);
+    }
+    return obj;
+}
+
 static void *createStringObject(const redisReadTask *task, char *str, size_t len) {
     PyObject *obj;
     obj = PyString_FromStringAndSize(str, len);
-    return (void*)obj;
+    return tryParentize(task, obj);
+}
+
+static void *createArrayObject(const redisReadTask *task, int elements) {
+    PyObject *obj;
+    obj = PyList_New(elements);
+    return tryParentize(task, obj);
+}
+
+static void *createIntegerObject(const redisReadTask *task, long long value) {
+    PyObject *obj;
+    obj = PyLong_FromLongLong(value);
+    return tryParentize(task, obj);
+}
+
+static void *createNilObject(const redisReadTask *task) {
+    PyObject *obj = Py_None;
+    Py_INCREF(obj);
+    return tryParentize(task, obj);
+}
+
+static void freeObject(void *obj) {
+    Py_XDECREF(obj);
 }
 
 redisReplyObjectFunctions hiredis_ObjectFunctions = {
-    createStringObject, // void *(*createString)(const redisReadTask*, char*, size_t);
-    NULL,               // void *(*createArray)(const redisReadTask*, int);
-    NULL,               // void *(*createInteger)(const redisReadTask*, long long);
-    NULL,               // void *(*createNil)(const redisReadTask*);
-    NULL                // void (*freeObject)(void*);
+    createStringObject,  // void *(*createString)(const redisReadTask*, char*, size_t);
+    createArrayObject,   // void *(*createArray)(const redisReadTask*, int);
+    createIntegerObject, // void *(*createInteger)(const redisReadTask*, long long);
+    createNilObject,     // void *(*createNil)(const redisReadTask*);
+    freeObject           // void (*freeObject)(void*);
 };
 
 static void Reader_dealloc(hiredis_ReaderObject *self) {
