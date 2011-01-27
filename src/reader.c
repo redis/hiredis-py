@@ -3,9 +3,11 @@
 static void Reader_dealloc(hiredis_ReaderObject *self);
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args);
+static PyObject *Reader_gets(hiredis_ReaderObject *self);
 
 static PyMethodDef hiredis_ReaderMethods[] = {
     {"feed", (PyCFunction)Reader_feed, METH_VARARGS, NULL },
+    {"gets", (PyCFunction)Reader_gets, METH_NOARGS, NULL },
     { NULL }  /* Sentinel */
 };
 
@@ -51,6 +53,20 @@ PyTypeObject hiredis_ReaderType = {
     Reader_new,                   /*tp_new */
 };
 
+static void *createStringObject(const redisReadTask *task, char *str, size_t len) {
+    PyObject *obj;
+    obj = PyString_FromStringAndSize(str, len);
+    return (void*)obj;
+}
+
+redisReplyObjectFunctions hiredis_ObjectFunctions = {
+    createStringObject, // void *(*createString)(const redisReadTask*, char*, size_t);
+    NULL,               // void *(*createArray)(const redisReadTask*, int);
+    NULL,               // void *(*createInteger)(const redisReadTask*, long long);
+    NULL,               // void *(*createNil)(const redisReadTask*);
+    NULL                // void (*freeObject)(void*);
+};
+
 static void Reader_dealloc(hiredis_ReaderObject *self) {
     redisReplyReaderFree(self->reader);
     self->ob_type->tp_free((PyObject*)self);
@@ -59,8 +75,10 @@ static void Reader_dealloc(hiredis_ReaderObject *self) {
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     hiredis_ReaderObject *self;
     self = (hiredis_ReaderObject*)type->tp_alloc(type, 0);
-    if (self != NULL)
+    if (self != NULL) {
         self->reader = redisReplyReaderCreate();
+        redisReplyReaderSetReplyObjectFunctions(self->reader, &hiredis_ObjectFunctions);
+    }
     return (PyObject*)self;
 }
 
@@ -73,4 +91,21 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
 
     redisReplyReaderFeed(self->reader, str, len);
     Py_RETURN_NONE;
+}
+
+static PyObject *Reader_gets(hiredis_ReaderObject *self) {
+    PyObject *obj;
+    char *err;
+
+    if (redisReplyReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
+        err = redisReplyReaderGetError(self->reader);
+        PyErr_SetString(PyExc_RuntimeError, err);
+        return NULL;
+    }
+
+    if (obj == NULL) {
+        Py_RETURN_FALSE;
+    } else {
+        return obj;
+    }
 }

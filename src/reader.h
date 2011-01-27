@@ -9,5 +9,6 @@ typedef struct {
 } hiredis_ReaderObject;
 
 extern PyTypeObject hiredis_ReaderType;
+extern redisReplyObjectFunctions hiredis_ObjectFunctions;
 
 #endif
