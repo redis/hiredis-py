@@ -1,7 +1,13 @@
 #include "reader.h"
 
-static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static void Reader_dealloc(hiredis_ReaderObject *self);
+static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args);
+
+static PyMethodDef hiredis_ReaderMethods[] = {
+    {"feed", (PyCFunction)Reader_feed, METH_VARARGS, NULL },
+    { NULL }  /* Sentinel */
+};
 
 PyTypeObject hiredis_ReaderType = {
     PyObject_HEAD_INIT(NULL)
@@ -32,7 +38,7 @@ PyTypeObject hiredis_ReaderType = {
     0,                            /*tp_weaklistoffset */
     0,                            /*tp_iter */
     0,                            /*tp_iternext */
-    0,                            /*tp_methods */
+    hiredis_ReaderMethods,        /*tp_methods */
     0,                            /*tp_members */
     0,                            /*tp_getset */
     0,                            /*tp_base */
@@ -45,6 +51,11 @@ PyTypeObject hiredis_ReaderType = {
     Reader_new,                   /*tp_new */
 };
 
+static void Reader_dealloc(hiredis_ReaderObject *self) {
+    redisReplyReaderFree(self->reader);
+    self->ob_type->tp_free((PyObject*)self);
+}
+
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     hiredis_ReaderObject *self;
     self = (hiredis_ReaderObject*)type->tp_alloc(type, 0);
@@ -53,7 +64,13 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
     return (PyObject*)self;
 }
 
-static void Reader_dealloc(hiredis_ReaderObject *self) {
-    redisReplyReaderFree(self->reader);
-    self->ob_type->tp_free((PyObject*)self);
+static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
+    const char *str;
+    int len;
+
+    if (!PyArg_ParseTuple(args, "s#", &str, &len))
+        return NULL;
+
+    redisReplyReaderFeed(self->reader, str, len);
+    Py_RETURN_NONE;
 }
