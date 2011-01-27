@@ -5,6 +5,7 @@
 
 typedef struct {
     PyObject_HEAD
+    void *reader;
 } hiredis_ReaderObject;
 
 extern PyTypeObject hiredis_ReaderType;

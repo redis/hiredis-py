@@ -1,12 +1,15 @@
 #include "reader.h"
 
+static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+static void Reader_dealloc(hiredis_ReaderObject *self);
+
 PyTypeObject hiredis_ReaderType = {
     PyObject_HEAD_INIT(NULL)
     0,                            /*ob_size*/
     "hiredis.Reader",             /*tp_name*/
     sizeof(hiredis_ReaderObject), /*tp_basicsize*/
     0,                            /*tp_itemsize*/
-    0,                            /*tp_dealloc*/
+    (destructor)Reader_dealloc,   /*tp_dealloc*/
     0,                            /*tp_print*/
     0,                            /*tp_getattr*/
     0,                            /*tp_setattr*/
@@ -23,4 +26,34 @@ PyTypeObject hiredis_ReaderType = {
     0,                            /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT,           /*tp_flags*/
     "Hiredis protocol reader",    /*tp_doc */
+    0,                            /*tp_traverse */
+    0,                            /*tp_clear */
+    0,                            /*tp_richcompare */
+    0,                            /*tp_weaklistoffset */
+    0,                            /*tp_iter */
+    0,                            /*tp_iternext */
+    0,                            /*tp_methods */
+    0,                            /*tp_members */
+    0,                            /*tp_getset */
+    0,                            /*tp_base */
+    0,                            /*tp_dict */
+    0,                            /*tp_descr_get */
+    0,                            /*tp_descr_set */
+    0,                            /*tp_dictoffset */
+    0,                            /*tp_init */
+    0,                            /*tp_alloc */
+    Reader_new,                   /*tp_new */
 };
+
+static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+    hiredis_ReaderObject *self;
+    self = (hiredis_ReaderObject*)type->tp_alloc(type, 0);
+    if (self != NULL)
+        self->reader = redisReplyReaderCreate();
+    return (PyObject*)self;
+}
+
+static void Reader_dealloc(hiredis_ReaderObject *self) {
+    redisReplyReaderFree(self->reader);
+    self->ob_type->tp_free((PyObject*)self);
+}

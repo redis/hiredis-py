@@ -8,7 +8,6 @@ static PyMethodDef hiredis_methods[] = {
 PyMODINIT_FUNC inithiredis(void) {
     PyObject* module;
 
-    hiredis_ReaderType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&hiredis_ReaderType) < 0)
         return;
 

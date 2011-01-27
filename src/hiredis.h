@@ -1,5 +1,5 @@
-#ifndef __HIREDIS_H
-#define __HIREDIS_H
+#ifndef __HIREDIS_PY_H
+#define __HIREDIS_PY_H
 
 #include <Python.h>
 #include <hiredis/hiredis.h>
