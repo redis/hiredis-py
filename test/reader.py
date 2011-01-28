@@ -18,6 +18,20 @@ class ReaderTest(TestCase):
     self.reader.feed("x")
     self.assertRaises(hiredis.exceptions.ProtocolError, self.reply)
 
+  def test_error_string(self):
+    self.reader.feed("-error\r\n")
+    error = self.reply()
+
+    self.assertEquals(hiredis.exceptions.ReplyError, type(error))
+    self.assertEquals(("error",), error.args)
+
+  def test_errors_in_nested_multi_bulk(self):
+    self.reader.feed("*2\r\n-err0\r\n-err1\r\n")
+
+    for i, error in enumerate(self.reply()):
+      self.assertEquals(hiredis.exceptions.ReplyError, type(error))
+      self.assertEquals(("err%d" % i,), error.args)
+
   def test_integer(self):
     value = 2**63-1 # Largest 64-bit signed integer
     self.reader.feed(":%d\r\n" % value)

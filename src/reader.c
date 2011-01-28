@@ -66,7 +66,17 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
 
 static void *createStringObject(const redisReadTask *task, char *str, size_t len) {
     PyObject *obj;
-    obj = PyString_FromStringAndSize(str, len);
+
+    if (task->type == REDIS_REPLY_ERROR) {
+      PyObject *args = Py_BuildValue("(s#)", str, len);
+      assert(args != NULL); /* TODO: properly handle OOM etc */
+      obj = PyObject_CallObject(HiErr_ReplyError, args);
+      assert(obj != NULL);
+      Py_DECREF(args);
+    } else {
+      obj = PyString_FromStringAndSize(str, len);
+    }
+
     return tryParentize(task, obj);
 }
 
