@@ -1,7 +1,7 @@
 import glob, os.path, sys
 
 # Add path to hiredis.so load path
-path = glob.glob("build/lib*/*.so")[0]
+path = glob.glob("build/lib*/hiredis/*.so")[0]
 sys.path.insert(0, os.path.dirname(path))
 
 from unittest import *
