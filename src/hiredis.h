@@ -8,6 +8,10 @@
 #define PyMODINIT_FUNC void
 #endif
 
+extern PyObject *HiErr_Base;
+extern PyObject *HiErr_ProtocolError;
+extern PyObject *HiErr_ReplyError;
+
 PyMODINIT_FUNC inithiredis(void);
 
 #endif
