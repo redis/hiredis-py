@@ -1,0 +1,7 @@
+include COPYING
+include src/*.[ch]
+include vendor/hiredis/COPYING
+include vendor/hiredis/Makefile
+include vendor/hiredis/*.[ch]
+exclude vendor/hiredis/example*
+exclude vendor/hiredis/text*
