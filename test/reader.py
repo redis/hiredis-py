@@ -23,10 +23,6 @@ class ReaderTest(TestCase):
     self.reader.feed("+ok\r\n")
     self.assertEquals("ok", self.reply())
 
-  def test_string(self):
-    self.reader.feed("$5\r\nhello\r\n")
-    self.assertEquals("hello", self.reply())
-
   def test_empty_bulk_string(self):
     self.reader.feed("$0\r\n\r\n")
     self.assertEquals("", self.reply())
