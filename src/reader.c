@@ -132,7 +132,7 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self) {
 
     if (redisReplyReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
         err = redisReplyReaderGetError(self->reader);
-        PyErr_SetString(PyExc_RuntimeError, err);
+        PyErr_SetString(HiErr_ProtocolError, err);
         return NULL;
     }
 

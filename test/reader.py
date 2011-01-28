@@ -14,6 +14,10 @@ class ReaderTest(TestCase):
   def test_error_when_feeding_non_string(self):
     self.assertRaises(TypeError, self.reader.feed, 1)
 
+  def test_protocol_error(self):
+    self.reader.feed("x")
+    self.assertRaises(hiredis.exceptions.ProtocolError, self.reply)
+
   def test_integer(self):
     value = 2**63-1 # Largest 64-bit signed integer
     self.reader.feed(":%d\r\n" % value)
