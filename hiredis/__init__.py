@@ -1,4 +1,6 @@
 from hiredis import Reader, HiredisError, ProtocolError, ReplyError
+from version import __version__
 
-__version__ = "0.0.1"
-__all__ = ["Reader", "HiredisError", "ProtocolError", "ReplyError"]
+__all__ = [
+  "Reader", "HiredisError", "ProtocolError", "ReplyError",
+  "__version__"]
