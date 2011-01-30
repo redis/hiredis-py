@@ -18,12 +18,31 @@ class ReaderTest(TestCase):
     self.reader.feed("x")
     self.assertRaises(hiredis.ProtocolError, self.reply)
 
+  def test_protocol_error_with_custom_class(self):
+    self.reader = hiredis.Reader(protocolError=RuntimeError)
+    self.reader.feed("x")
+    self.assertRaises(RuntimeError, self.reply)
+
+  def test_fail_with_wrong_protocol_error_class(self):
+    self.assertRaises(TypeError, hiredis.Reader, protocolError="wrong")
+
   def test_error_string(self):
     self.reader.feed("-error\r\n")
     error = self.reply()
 
     self.assertEquals(hiredis.ReplyError, type(error))
     self.assertEquals(("error",), error.args)
+
+  def test_error_string_with_custom_class(self):
+    self.reader = hiredis.Reader(replyError=RuntimeError)
+    self.reader.feed("-error\r\n")
+    error = self.reply()
+
+    self.assertEquals(RuntimeError, type(error))
+    self.assertEquals(("error",), error.args)
+
+  def test_fail_with_wrong_reply_error_class(self):
+    self.assertRaises(TypeError, hiredis.Reader, replyError="wrong")
 
   def test_errors_in_nested_multi_bulk(self):
     self.reader.feed("*2\r\n-err0\r\n-err1\r\n")

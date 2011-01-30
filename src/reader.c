@@ -2,6 +2,7 @@
 #include "reader.h"
 
 static void Reader_dealloc(hiredis_ReaderObject *self);
+static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds);
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args);
 static PyObject *Reader_gets(hiredis_ReaderObject *self);
@@ -49,7 +50,7 @@ PyTypeObject hiredis_ReaderType = {
     0,                            /*tp_descr_get */
     0,                            /*tp_descr_set */
     0,                            /*tp_dictoffset */
-    0,                            /*tp_init */
+    (initproc)Reader_init,        /*tp_init */
     0,                            /*tp_alloc */
     Reader_new,                   /*tp_new */
 };
@@ -65,12 +66,13 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
 }
 
 static void *createStringObject(const redisReadTask *task, char *str, size_t len) {
+    hiredis_ReaderObject *self = (hiredis_ReaderObject*)task->privdata;
     PyObject *obj;
 
     if (task->type == REDIS_REPLY_ERROR) {
         PyObject *args = Py_BuildValue("(s#)", str, len);
         assert(args != NULL); /* TODO: properly handle OOM etc */
-        obj = PyObject_CallObject(HiErr_ReplyError, args);
+        obj = PyObject_CallObject(self->replyErrorClass, args);
         assert(obj != NULL);
         Py_DECREF(args);
     } else {
@@ -115,12 +117,57 @@ static void Reader_dealloc(hiredis_ReaderObject *self) {
     self->ob_type->tp_free((PyObject*)self);
 }
 
+static int _Reader_set_exception(PyObject **target, PyObject *value) {
+    int subclass;
+    subclass = PyObject_IsSubclass(value, PyExc_Exception);
+
+    if (subclass == -1) {
+        return 0;
+    }
+
+    if (subclass == 0) {
+        PyErr_SetString(PyExc_TypeError, "Expected subclass of Exception");
+        return 0;
+    }
+
+    Py_DECREF(*target);
+    *target = value;
+    Py_INCREF(*target);
+    return 1;
+}
+
+static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+    static char *kwlist[] = { "protocolError", "replyError", NULL };
+    PyObject *protocolErrorClass = NULL;
+    PyObject *replyErrorClass = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", kwlist,
+        &protocolErrorClass, &replyErrorClass))
+            return -1;
+
+    if (protocolErrorClass)
+        if (!_Reader_set_exception(&self->protocolErrorClass, protocolErrorClass))
+            return -1;
+
+    if (replyErrorClass)
+        if (!_Reader_set_exception(&self->replyErrorClass, replyErrorClass))
+            return -1;
+
+    return 0;
+}
+
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     hiredis_ReaderObject *self;
     self = (hiredis_ReaderObject*)type->tp_alloc(type, 0);
     if (self != NULL) {
         self->reader = redisReplyReaderCreate();
         redisReplyReaderSetReplyObjectFunctions(self->reader, &hiredis_ObjectFunctions);
+        redisReplyReaderSetPrivdata(self->reader, self);
+
+        self->protocolErrorClass = HiErr_ProtocolError;
+        self->replyErrorClass = HiErr_ReplyError;
+        Py_INCREF(self->protocolErrorClass);
+        Py_INCREF(self->replyErrorClass);
     }
     return (PyObject*)self;
 }
@@ -142,7 +189,7 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self) {
 
     if (redisReplyReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
         err = redisReplyReaderGetError(self->reader);
-        PyErr_SetString(HiErr_ProtocolError, err);
+        PyErr_SetString(self->protocolErrorClass, err);
         return NULL;
     }
 
