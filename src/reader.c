@@ -76,7 +76,12 @@ static void *createStringObject(const redisReadTask *task, char *str, size_t len
         assert(obj != NULL);
         Py_DECREF(args);
     } else {
-        obj = PyString_FromStringAndSize(str, len);
+        if (self->encoding != NULL) {
+            obj = PyUnicode_Decode(str, len, self->encoding, NULL);
+            assert(obj == NULL); // Assume success for now
+        } else {
+            obj = PyString_FromStringAndSize(str, len);
+        }
     }
 
     return tryParentize(task, obj);
@@ -114,6 +119,9 @@ redisReplyObjectFunctions hiredis_ObjectFunctions = {
 
 static void Reader_dealloc(hiredis_ReaderObject *self) {
     redisReplyReaderFree(self->reader);
+    if (self->encoding)
+        free(self->encoding);
+
     self->ob_type->tp_free((PyObject*)self);
 }
 
@@ -137,12 +145,15 @@ static int _Reader_set_exception(PyObject **target, PyObject *value) {
 }
 
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
-    static char *kwlist[] = { "protocolError", "replyError", NULL };
+    static char *kwlist[] = { "protocolError", "replyError", "encoding", NULL };
     PyObject *protocolErrorClass = NULL;
     PyObject *replyErrorClass = NULL;
+    PyObject *encodingObj = NULL;
+    char *encstr;
+    int enclen;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OO", kwlist,
-        &protocolErrorClass, &replyErrorClass))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", kwlist,
+        &protocolErrorClass, &replyErrorClass, &encodingObj))
             return -1;
 
     if (protocolErrorClass)
@@ -152,6 +163,18 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
     if (replyErrorClass)
         if (!_Reader_set_exception(&self->replyErrorClass, replyErrorClass))
             return -1;
+
+    if (encodingObj) {
+        encstr = PyString_AsString(encodingObj);
+        if (encstr != NULL) {
+            enclen = strlen(encstr);
+            self->encoding = (char*)malloc(enclen+1);
+            memcpy(self->encoding, encstr, enclen);
+            self->encoding[enclen] = '\0';
+        } else {
+            return -1;
+        }
+    }
 
     return 0;
 }
@@ -164,6 +187,7 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         redisReplyReaderSetReplyObjectFunctions(self->reader, &hiredis_ObjectFunctions);
         redisReplyReaderSetPrivdata(self->reader, self);
 
+        self->encoding = NULL;
         self->protocolErrorClass = HiErr_ProtocolError;
         self->replyErrorClass = HiErr_ReplyError;
         Py_INCREF(self->protocolErrorClass);

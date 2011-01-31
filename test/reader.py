@@ -1,3 +1,4 @@
+# coding=utf-8
 from unittest import *
 import hiredis
 
@@ -67,6 +68,17 @@ class ReaderTest(TestCase):
   def test_bulk_string(self):
     self.reader.feed("$5\r\nhello\r\n")
     self.assertEquals("hello", self.reply())
+
+  def test_bulk_string_without_encoding(self):
+    snowman = "\xe2\x98\x83"
+    self.reader.feed("$3\r\n%s\r\n" % snowman)
+    self.assertEquals(snowman, self.reply())
+
+  def test_bulk_string_with_encoding(self):
+    snowman = "\xe2\x98\x83"
+    self.reader = hiredis.Reader(encoding="utf-8")
+    self.reader.feed("$3\r\n%s\r\n" % snowman)
+    self.assertEquals(u"☃", self.reply())
 
   def test_null_multi_bulk(self):
     self.reader.feed("*-1\r\n")

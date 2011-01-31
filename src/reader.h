@@ -6,6 +6,7 @@
 typedef struct {
     PyObject_HEAD
     void *reader;
+    char *encoding;
     PyObject *protocolErrorClass;
     PyObject *replyErrorClass;
 } hiredis_ReaderObject;
