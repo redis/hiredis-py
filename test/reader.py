@@ -27,6 +27,9 @@ class ReaderTest(TestCase):
   def test_fail_with_wrong_protocol_error_class(self):
     self.assertRaises(TypeError, hiredis.Reader, protocolError="wrong")
 
+  def test_fail_with_unknown_encoding(self):
+    self.assertRaises(LookupError, hiredis.Reader, encoding="unknown")
+
   def test_error_string(self):
     self.reader.feed("-error\r\n")
     error = self.reply()

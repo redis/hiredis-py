@@ -149,8 +149,6 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
     PyObject *protocolErrorClass = NULL;
     PyObject *replyErrorClass = NULL;
     PyObject *encodingObj = NULL;
-    char *encstr;
-    int enclen;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", kwlist,
         &protocolErrorClass, &replyErrorClass, &encodingObj))
@@ -165,9 +163,25 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
             return -1;
 
     if (encodingObj) {
+        char *encstr;
+        int enclen;
+        PyObject *enctest;
+
         encstr = PyString_AsString(encodingObj);
         if (encstr != NULL) {
+            /* Check that the encoding is valid by trying to decode a simple
+             * string to the specified encoding. If this fails, we know the
+             * encoding is not valid. */
             enclen = strlen(encstr);
+            enctest = PyUnicode_Decode("a", 1, encstr, NULL);
+            if (enctest == NULL) {
+                /* Every encoding should be able to decode this string, so we
+                 * expect to get a LookupError. */
+                assert(PyErr_ExceptionMatches(PyExc_LookupError));
+                return -1;
+            }
+
+            Py_DECREF(enctest);
             self->encoding = (char*)malloc(enclen+1);
             memcpy(self->encoding, encstr, enclen);
             self->encoding[enclen] = '\0';
