@@ -6,8 +6,8 @@ parsing multi bulk replies.
 
 ## Install
 
-hiredis-py is available on [PyPi](http://pypi.python.org/pypi/hiredis).
-Install using `easy\_install` with:
+hiredis-py is available on [PyPi](http://pypi.python.org/pypi/hiredis), and
+can be installed with:
 
     easy_install hiredis
 
@@ -87,24 +87,25 @@ redis-py that uses hiredis-py when it is available.
 
 All benchmarks are done with 10 concurrent connections.
 
-* SET key value; GET key
+* SET key value + GET key
   * redis-py: 11.76 Kops
   * redis-py **with** hiredis-py: 13.40 Kops
+  * improvement: **1.1x**
 
-List entries in the following test are 5 bytes
+List entries in the following tests are 5 bytes.
 
 * LRANGE list 0 **9**:
   * redis-py: 4.78 Kops
-  * redis-py **with** hiredis-py: 12.94 Kops
-  * Improvement: 2.7x
+  * redis-py *with* hiredis-py: 12.94 Kops
+  * improvement: **2.7x**
 * LRANGE list 0 **99**:
   * redis-py: 0.73 Kops
-  * redis-py **with** hiredis-py: 11.90 Kops
-  * Improvement: 16.3x
+  * redis-py *with* hiredis-py: 11.90 Kops
+  * improvement: **16.3x**
 * LRANGE list 0 **999**:
   * redis-py: 0.07 Kops
-  * redis-py **with** hiredis-py: 5.83 Kops
-  * Improvement: 83.2x
+  * redis-py *with* hiredis-py: 5.83 Kops
+  * improvement: **83.2x**
 
 Throughput improvement for simple SET/GET is minimal, but the larger multi bulk replies
 get, the larger the performance improvement is.
