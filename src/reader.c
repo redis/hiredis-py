@@ -65,6 +65,39 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
     return obj;
 }
 
+static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str, size_t len) {
+    PyObject *obj;
+
+    if (self->encoding == NULL) {
+        obj = PyString_FromStringAndSize(str, len);
+    } else {
+        obj = PyUnicode_Decode(str, len, self->encoding, NULL);
+        if (obj == NULL) {
+            if (PyErr_ExceptionMatches(PyExc_ValueError)) {
+                /* Ignore encoding and simply return plain string. */
+                obj = PyString_FromStringAndSize(str, len);
+            } else {
+                assert(PyErr_ExceptionMatches(PyExc_LookupError));
+
+                /* Store error when this is the first. */
+                if (self->error.ptype == NULL)
+                    PyErr_Fetch(&(self->error.ptype), &(self->error.pvalue),
+                            &(self->error.ptraceback));
+
+                /* Return Py_None as placeholder to let the error bubble up and
+                 * be used when a full reply in Reader#gets(). */
+                obj = Py_None;
+                Py_INCREF(obj);
+            }
+
+            PyErr_Clear();
+        }
+    }
+
+    assert(obj != NULL);
+    return obj;
+}
+
 static void *createStringObject(const redisReadTask *task, char *str, size_t len) {
     hiredis_ReaderObject *self = (hiredis_ReaderObject*)task->privdata;
     PyObject *obj;
@@ -76,12 +109,7 @@ static void *createStringObject(const redisReadTask *task, char *str, size_t len
         assert(obj != NULL);
         Py_DECREF(args);
     } else {
-        if (self->encoding != NULL) {
-            obj = PyUnicode_Decode(str, len, self->encoding, NULL);
-            assert(obj == NULL); // Assume success for now
-        } else {
-            obj = PyString_FromStringAndSize(str, len);
-        }
+        obj = createDecodedString(self, str, len);
     }
 
     return tryParentize(task, obj);
@@ -165,23 +193,10 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
     if (encodingObj) {
         char *encstr;
         int enclen;
-        PyObject *enctest;
 
         encstr = PyString_AsString(encodingObj);
         if (encstr != NULL) {
-            /* Check that the encoding is valid by trying to decode a simple
-             * string to the specified encoding. If this fails, we know the
-             * encoding is not valid. */
             enclen = strlen(encstr);
-            enctest = PyUnicode_Decode("a", 1, encstr, NULL);
-            if (enctest == NULL) {
-                /* Every encoding should be able to decode this string, so we
-                 * expect to get a LookupError. */
-                assert(PyErr_ExceptionMatches(PyExc_LookupError));
-                return -1;
-            }
-
-            Py_DECREF(enctest);
             self->encoding = (char*)malloc(enclen+1);
             memcpy(self->encoding, encstr, enclen);
             self->encoding[enclen] = '\0';
@@ -206,6 +221,10 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         self->replyErrorClass = HiErr_ReplyError;
         Py_INCREF(self->protocolErrorClass);
         Py_INCREF(self->replyErrorClass);
+
+        self->error.ptype = NULL;
+        self->error.pvalue = NULL;
+        self->error.ptraceback = NULL;
     }
     return (PyObject*)self;
 }
@@ -234,6 +253,16 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self) {
     if (obj == NULL) {
         Py_RETURN_FALSE;
     } else {
+        /* Restore error when there is one. */
+        if (self->error.ptype != NULL) {
+            Py_DECREF(obj);
+            PyErr_Restore(self->error.ptype, self->error.pvalue,
+                    self->error.ptraceback);
+            self->error.ptype = NULL;
+            self->error.pvalue = NULL;
+            self->error.ptraceback = NULL;
+            return NULL;
+        }
         return obj;
     }
 }
