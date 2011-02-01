@@ -7,7 +7,7 @@ from redis import Redis
 import gevent
 from gevent import monkey
 from gevent.coros import Semaphore
-monkey.patch_socket()
+monkey.patch_all()
 
 parser = optparse.OptionParser()
 parser.add_option("-n", dest="count", metavar="COUNT", type="int", default=10000)
@@ -33,10 +33,15 @@ def create_client():
     for (cmd, args) in commands:
       getattr(redis, cmd)(*args)
 
-def start_clients(clients):
+def run(clients):
   [sem.release() for _ in range(len(clients))]
-  gevent.joinall(clients)
 
-start = partial(start_clients, [gevent.spawn(create_client) for _ in range(options.clients)])
-time = timeit.timeit(start, number=1)
-print "%.2f Kops" % ((len(commands) * count / 1000.0) / time)
+  # Time how long it takes for all greenlets to finish
+  join = partial(gevent.joinall, clients)
+  time = timeit.timeit(join, number=1)
+  print "%.2f Kops" % ((len(commands) * count / 1000.0) / time)
+
+# Let clients connect, and kickstart benchmark a little later
+clients = [gevent.spawn(create_client) for _ in range(options.clients)]
+let = gevent.spawn(run, clients)
+gevent.joinall([let])
