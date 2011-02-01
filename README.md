@@ -89,7 +89,7 @@ All benchmarks are done with 10 concurrent connections.
 
 * SET key value + GET key
   * redis-py: 11.76 Kops
-  * redis-py **with** hiredis-py: 13.40 Kops
+  * redis-py *with* hiredis-py: 13.40 Kops
   * improvement: **1.1x**
 
 List entries in the following tests are 5 bytes.
