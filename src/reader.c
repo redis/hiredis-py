@@ -14,8 +14,7 @@ static PyMethodDef hiredis_ReaderMethods[] = {
 };
 
 PyTypeObject hiredis_ReaderType = {
-    PyObject_HEAD_INIT(NULL)
-    0,                            /*ob_size*/
+    PyVarObject_HEAD_INIT(NULL, 0)
     "hiredis.Reader",             /*tp_name*/
     sizeof(hiredis_ReaderObject), /*tp_basicsize*/
     0,                            /*tp_itemsize*/
@@ -69,13 +68,13 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
     PyObject *obj;
 
     if (self->encoding == NULL) {
-        obj = PyString_FromStringAndSize(str, len);
+        obj = PyBytes_FromStringAndSize(str, len);
     } else {
         obj = PyUnicode_Decode(str, len, self->encoding, NULL);
         if (obj == NULL) {
             if (PyErr_ExceptionMatches(PyExc_ValueError)) {
                 /* Ignore encoding and simply return plain string. */
-                obj = PyString_FromStringAndSize(str, len);
+                obj = PyBytes_FromStringAndSize(str, len);
             } else {
                 assert(PyErr_ExceptionMatches(PyExc_LookupError));
 
@@ -150,7 +149,7 @@ static void Reader_dealloc(hiredis_ReaderObject *self) {
     if (self->encoding)
         free(self->encoding);
 
-    self->ob_type->tp_free((PyObject*)self);
+    ((PyObject *)self)->ob_type->tp_free((PyObject*)self);
 }
 
 static int _Reader_set_exception(PyObject **target, PyObject *value) {
@@ -194,15 +193,14 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
         char *encstr;
         int enclen;
 
-        encstr = PyString_AsString(encodingObj);
-        if (encstr != NULL) {
-            enclen = strlen(encstr);
-            self->encoding = (char*)malloc(enclen+1);
-            memcpy(self->encoding, encstr, enclen);
-            self->encoding[enclen] = '\0';
-        } else {
+	PyObject *encby = PyUnicode_AsASCIIString(encodingObj);
+	if(encby == NULL)
             return -1;
-        }
+	enclen = PyBytes_GET_SIZE(encby);
+	encstr = PyBytes_AsString(encby);
+        self->encoding = (char*)malloc(enclen+1);
+        memcpy(self->encoding, encstr, enclen);
+        self->encoding[enclen] = '\0';
     }
 
     return 0;
