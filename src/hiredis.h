@@ -12,6 +12,10 @@ extern PyObject *HiErr_Base;
 extern PyObject *HiErr_ProtocolError;
 extern PyObject *HiErr_ReplyError;
 
+#if PY_MAJOR_VERSION >= 3
+PyMODINIT_FUNC PyInit_hiredis(void);
+#else
 PyMODINIT_FUNC inithiredis(void);
+#endif
 
 #endif

@@ -1,4 +1,5 @@
 # coding=utf-8
+from __future__ import unicode_literals
 from unittest import *
 import hiredis
 
@@ -16,19 +17,19 @@ class ReaderTest(TestCase):
     self.assertRaises(TypeError, self.reader.feed, 1)
 
   def test_protocol_error(self):
-    self.reader.feed("x")
+    self.reader.feed(b"x")
     self.assertRaises(hiredis.ProtocolError, self.reply)
 
   def test_protocol_error_with_custom_class(self):
     self.reader = hiredis.Reader(protocolError=RuntimeError)
-    self.reader.feed("x")
+    self.reader.feed(b"x")
     self.assertRaises(RuntimeError, self.reply)
 
   def test_fail_with_wrong_protocol_error_class(self):
     self.assertRaises(TypeError, hiredis.Reader, protocolError="wrong")
 
   def test_error_string(self):
-    self.reader.feed("-error\r\n")
+    self.reader.feed(b"-error\r\n")
     error = self.reply()
 
     self.assertEquals(hiredis.ReplyError, type(error))
@@ -36,7 +37,7 @@ class ReaderTest(TestCase):
 
   def test_error_string_with_custom_class(self):
     self.reader = hiredis.Reader(replyError=RuntimeError)
-    self.reader.feed("-error\r\n")
+    self.reader.feed(b"-error\r\n")
     error = self.reply()
 
     self.assertEquals(RuntimeError, type(error))
@@ -46,70 +47,70 @@ class ReaderTest(TestCase):
     self.assertRaises(TypeError, hiredis.Reader, replyError="wrong")
 
   def test_errors_in_nested_multi_bulk(self):
-    self.reader.feed("*2\r\n-err0\r\n-err1\r\n")
+    self.reader.feed(b"*2\r\n-err0\r\n-err1\r\n")
 
-    for i, error in enumerate(self.reply()):
+    for r, error in zip(('err0', 'err1'), self.reply()):
       self.assertEquals(hiredis.ReplyError, type(error))
-      self.assertEquals(("err%d" % i,), error.args)
+      self.assertEquals((r,), error.args)
 
   def test_integer(self):
     value = 2**63-1 # Largest 64-bit signed integer
-    self.reader.feed(":%d\r\n" % value)
+    self.reader.feed((":%d\r\n" % value).encode('ascii'))
     self.assertEquals(value, self.reply())
 
   def test_status_string(self):
-    self.reader.feed("+ok\r\n")
-    self.assertEquals("ok", self.reply())
+    self.reader.feed(b"+ok\r\n")
+    self.assertEquals(b"ok", self.reply())
 
   def test_empty_bulk_string(self):
-    self.reader.feed("$0\r\n\r\n")
-    self.assertEquals("", self.reply())
+    self.reader.feed(b"$0\r\n\r\n")
+    self.assertEquals(b"", self.reply())
 
   def test_bulk_string(self):
-    self.reader.feed("$5\r\nhello\r\n")
-    self.assertEquals("hello", self.reply())
+    self.reader.feed(b"$5\r\nhello\r\n")
+    self.assertEquals(b"hello", self.reply())
 
   def test_bulk_string_without_encoding(self):
-    snowman = "\xe2\x98\x83"
-    self.reader.feed("$3\r\n%s\r\n" % snowman)
+    snowman = b"\xe2\x98\x83"
+    self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
     self.assertEquals(snowman, self.reply())
 
   def test_bulk_string_with_encoding(self):
-    snowman = "\xe2\x98\x83"
+    snowman = b"\xe2\x98\x83"
     self.reader = hiredis.Reader(encoding="utf-8")
-    self.reader.feed("$3\r\n%s\r\n" % snowman)
-    self.assertEquals(u"☃", self.reply())
+    self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
+    self.assertEquals("☃", self.reply())
 
   def test_bulk_string_with_other_encoding(self):
-    snowman = "\xe2\x98\x83"
+    snowman = b"\xe2\x98\x83"
     self.reader = hiredis.Reader(encoding="utf-32")
-    self.reader.feed("$3\r\n%s\r\n" % snowman)
+    self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
     self.assertEquals(snowman, self.reply())
 
   def test_bulk_string_with_invalid_encoding(self):
     self.reader = hiredis.Reader(encoding="unknown")
-    self.reader.feed("$5\r\nhello\r\n")
+    self.reader.feed(b"$5\r\nhello\r\n")
     self.assertRaises(LookupError, self.reply)
 
   def test_null_multi_bulk(self):
-    self.reader.feed("*-1\r\n")
+    self.reader.feed(b"*-1\r\n")
     self.assertEquals(None, self.reply())
 
   def test_empty_multi_bulk(self):
-    self.reader.feed("*0\r\n")
+    self.reader.feed(b"*0\r\n")
     self.assertEquals([], self.reply())
 
   def test_multi_bulk(self):
-    self.reader.feed("*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n")
-    self.assertEquals(["hello", "world"], self.reply())
+    self.reader.feed(b"*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n")
+    self.assertEquals([b"hello", b"world"], self.reply())
 
   def test_multi_bulk_with_invalid_encoding_and_partial_reply(self):
     self.reader = hiredis.Reader(encoding="unknown")
-    self.reader.feed("*2\r\n$5\r\nhello\r\n")
+    self.reader.feed(b"*2\r\n$5\r\nhello\r\n")
     self.assertEquals(False, self.reply())
-    self.reader.feed(":1\r\n")
+    self.reader.feed(b":1\r\n")
     self.assertRaises(LookupError, self.reply)
 
   def test_nested_multi_bulk(self):
-    self.reader.feed("*2\r\n*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n$1\r\n!\r\n")
-    self.assertEquals([["hello", "world"], "!"], self.reply())
+    self.reader.feed(b"*2\r\n*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n$1\r\n!\r\n")
+    self.assertEquals([[b"hello", b"world"], b"!"], self.reply())
