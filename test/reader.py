@@ -113,3 +113,12 @@ class ReaderTest(TestCase):
   def test_nested_multi_bulk(self):
     self.reader.feed(b"*2\r\n*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n$1\r\n!\r\n")
     self.assertEquals([[b"hello", b"world"], b"!"], self.reply())
+
+  def test_subclassable(self):
+    class TestReader(hiredis.Reader):
+      def __init__(self, *args, **kwargs):
+        super(TestReader, self).__init__(*args, **kwargs)
+
+    reader = TestReader()
+    reader.feed(b"+ok\r\n")
+    self.assertEquals(b"ok", reader.gets())
