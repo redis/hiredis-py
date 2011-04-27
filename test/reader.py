@@ -1,5 +1,4 @@
 # coding=utf-8
-from __future__ import unicode_literals
 from unittest import *
 import hiredis
 
@@ -49,13 +48,13 @@ class ReaderTest(TestCase):
   def test_errors_in_nested_multi_bulk(self):
     self.reader.feed(b"*2\r\n-err0\r\n-err1\r\n")
 
-    for r, error in zip(('err0', 'err1'), self.reply()):
+    for r, error in zip(("err0", "err1"), self.reply()):
       self.assertEquals(hiredis.ReplyError, type(error))
       self.assertEquals((r,), error.args)
 
   def test_integer(self):
     value = 2**63-1 # Largest 64-bit signed integer
-    self.reader.feed((":%d\r\n" % value).encode('ascii'))
+    self.reader.feed((":%d\r\n" % value).encode("ascii"))
     self.assertEquals(value, self.reply())
 
   def test_status_string(self):
@@ -79,7 +78,7 @@ class ReaderTest(TestCase):
     snowman = b"\xe2\x98\x83"
     self.reader = hiredis.Reader(encoding="utf-8")
     self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
-    self.assertEquals("☃", self.reply())
+    self.assertEquals(snowman.decode("utf-8"), self.reply())
 
   def test_bulk_string_with_other_encoding(self):
     snowman = b"\xe2\x98\x83"

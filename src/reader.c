@@ -194,11 +194,15 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
         char *encstr;
         int enclen;
 
-        encbytes = PyUnicode_AsASCIIString(encodingObj);
+        if (PyUnicode_Check(encodingObj))
+            encbytes = PyUnicode_AsASCIIString(encodingObj);
+        else
+            encbytes = PyObject_Bytes(encodingObj);
+
         if (encbytes == NULL)
             return -1;
 
-        enclen = PyBytes_GET_SIZE(encbytes);
+        enclen = PyBytes_Size(encbytes);
         encstr = PyBytes_AsString(encbytes);
         self->encoding = (char*)malloc(enclen+1);
         memcpy(self->encoding, encstr, enclen);
