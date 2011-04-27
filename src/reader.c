@@ -15,7 +15,7 @@ static PyMethodDef hiredis_ReaderMethods[] = {
 
 PyTypeObject hiredis_ReaderType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "hiredis.Reader",             /*tp_name*/
+    MOD_HIREDIS ".Reader",        /*tp_name*/
     sizeof(hiredis_ReaderObject), /*tp_basicsize*/
     0,                            /*tp_itemsize*/
     (destructor)Reader_dealloc,   /*tp_dealloc*/
@@ -190,17 +190,20 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
             return -1;
 
     if (encodingObj) {
+        PyObject *encbytes;
         char *encstr;
         int enclen;
 
-	PyObject *encby = PyUnicode_AsASCIIString(encodingObj);
-	if(encby == NULL)
+        encbytes = PyUnicode_AsASCIIString(encodingObj);
+        if (encbytes == NULL)
             return -1;
-	enclen = PyBytes_GET_SIZE(encby);
-	encstr = PyBytes_AsString(encby);
+
+        enclen = PyBytes_GET_SIZE(encbytes);
+        encstr = PyBytes_AsString(encbytes);
         self->encoding = (char*)malloc(enclen+1);
         memcpy(self->encoding, encstr, enclen);
         self->encoding[enclen] = '\0';
+        Py_DECREF(encbytes);
     }
 
     return 0;

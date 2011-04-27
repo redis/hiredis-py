@@ -8,11 +8,19 @@
 #define PyMODINIT_FUNC void
 #endif
 
+#if PY_MAJOR_VERSION >= 3
+#define IS_PY3K 1
+#endif
+
+#ifndef MOD_HIREDIS
+#define MOD_HIREDIS "hiredis"
+#endif
+
 extern PyObject *HiErr_Base;
 extern PyObject *HiErr_ProtocolError;
 extern PyObject *HiErr_ReplyError;
 
-#if PY_MAJOR_VERSION >= 3
+#ifdef IS_PY3K
 PyMODINIT_FUNC PyInit_hiredis(void);
 #else
 PyMODINIT_FUNC inithiredis(void);
