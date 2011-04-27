@@ -17,15 +17,15 @@ static int hiredis_ModuleClear(PyObject *m) {
 }
 
 static struct PyModuleDef hiredis_ModuleDef = {
-        PyModuleDef_HEAD_INIT,
-        MOD_HIREDIS,
-        NULL,
-        sizeof(struct hiredis_ModuleState), /* sizeof state */
-        NULL, /* Module methods */
-        NULL,
-        hiredis_ModuleTraverse, /* GC traverse */
-        hiredis_ModuleClear, /* GC clear */
-        NULL
+    PyModuleDef_HEAD_INIT,
+    MOD_HIREDIS,
+    NULL,
+    sizeof(struct hiredis_ModuleState), /* m_size */
+    NULL, /* m_methods */
+    NULL, /* m_reload */
+    hiredis_ModuleTraverse, /* m_traverse */
+    hiredis_ModuleClear, /* m_clear */
+    NULL /* m_free */
 };
 #else
 struct hiredis_ModuleState state;
