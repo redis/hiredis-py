@@ -5,7 +5,7 @@
 
 typedef struct {
     PyObject_HEAD
-    void *reader;
+    redisReader *reader;
     char *encoding;
     PyObject *protocolErrorClass;
     PyObject *replyErrorClass;
