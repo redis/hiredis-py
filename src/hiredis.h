@@ -16,9 +16,22 @@
 #define MOD_HIREDIS "hiredis"
 #endif
 
-extern PyObject *HiErr_Base;
-extern PyObject *HiErr_ProtocolError;
-extern PyObject *HiErr_ReplyError;
+struct hiredis_ModuleState {
+    PyObject *HiErr_Base;
+    PyObject *HiErr_ProtocolError;
+    PyObject *HiErr_ReplyError;
+};
+
+#if IS_PY3K
+#define GET_STATE(__s) ((struct hiredis_ModuleState*)PyModule_GetState(__s))
+#else
+extern struct hiredis_ModuleState state;
+#define GET_STATE(__s) (&state)
+#endif
+
+/* Keep pointer around for other classes to access the module state. */
+extern PyObject *mod_hiredis;
+#define HIREDIS_STATE (GET_STATE(mod_hiredis))
 
 #ifdef IS_PY3K
 PyMODINIT_FUNC PyInit_hiredis(void);

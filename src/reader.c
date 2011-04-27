@@ -222,8 +222,8 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         redisReplyReaderSetPrivdata(self->reader, self);
 
         self->encoding = NULL;
-        self->protocolErrorClass = HiErr_ProtocolError;
-        self->replyErrorClass = HiErr_ReplyError;
+        self->protocolErrorClass = HIREDIS_STATE->HiErr_ProtocolError;
+        self->replyErrorClass = HIREDIS_STATE->HiErr_ReplyError;
         Py_INCREF(self->protocolErrorClass);
         Py_INCREF(self->replyErrorClass);
 

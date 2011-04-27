@@ -1,24 +1,38 @@
 #include "hiredis.h"
 #include "reader.h"
 
-// TODO: move into state
-PyObject *HiErr_Base;
-PyObject *HiErr_ProtocolError;
-PyObject *HiErr_ReplyError;
-
 #if IS_PY3K
+static int hiredis_ModuleTraverse(PyObject *m, visitproc visit, void *arg) {
+    Py_VISIT(GET_STATE(m)->HiErr_Base);
+    Py_VISIT(GET_STATE(m)->HiErr_ProtocolError);
+    Py_VISIT(GET_STATE(m)->HiErr_ReplyError);
+    return 0;
+}
+
+static int hiredis_ModuleClear(PyObject *m) {
+    Py_CLEAR(GET_STATE(m)->HiErr_Base);
+    Py_CLEAR(GET_STATE(m)->HiErr_ProtocolError);
+    Py_CLEAR(GET_STATE(m)->HiErr_ReplyError);
+    return 0;
+}
+
 static struct PyModuleDef hiredis_ModuleDef = {
         PyModuleDef_HEAD_INIT,
         MOD_HIREDIS,
         NULL,
-        0,    /* sizeof state */
-        NULL, /* Module methods*/
+        sizeof(struct hiredis_ModuleState), /* sizeof state */
+        NULL, /* Module methods */
         NULL,
-        NULL, /* GC traverse */
-        NULL, /* GC clear */
+        hiredis_ModuleTraverse, /* GC traverse */
+        hiredis_ModuleClear, /* GC clear */
         NULL
 };
+#else
+struct hiredis_ModuleState state;
 #endif
+
+/* Keep pointer around for other classes to access the module state. */
+PyObject *mod_hiredis;
 
 #if IS_PY3K
 PyMODINIT_FUNC PyInit_hiredis(void)
@@ -27,8 +41,6 @@ PyMODINIT_FUNC inithiredis(void)
 #endif
 
 {
-    PyObject *mod_hiredis;
-
     if (PyType_Ready(&hiredis_ReaderType) < 0) {
 #if IS_PY3K
         return NULL;
@@ -37,20 +49,23 @@ PyMODINIT_FUNC inithiredis(void)
 #endif
     }
 
-    /* Setup custom exceptions */
-    HiErr_Base = PyErr_NewException(MOD_HIREDIS ".HiredisError", PyExc_Exception, NULL);
-    HiErr_ProtocolError = PyErr_NewException(MOD_HIREDIS ".ProtocolError", HiErr_Base, NULL);
-    HiErr_ReplyError = PyErr_NewException(MOD_HIREDIS ".ReplyError", HiErr_Base, NULL);
-
 #if IS_PY3K
     mod_hiredis = PyModule_Create(&hiredis_ModuleDef);
 #else
     mod_hiredis = Py_InitModule(MOD_HIREDIS, NULL);
 #endif
 
-    PyModule_AddObject(mod_hiredis, "HiredisError", HiErr_Base);
-    PyModule_AddObject(mod_hiredis, "ProtocolError", HiErr_ProtocolError);
-    PyModule_AddObject(mod_hiredis, "ReplyError", HiErr_ReplyError);
+    /* Setup custom exceptions */
+    HIREDIS_STATE->HiErr_Base =
+        PyErr_NewException(MOD_HIREDIS ".HiredisError", PyExc_Exception, NULL);
+    HIREDIS_STATE->HiErr_ProtocolError =
+        PyErr_NewException(MOD_HIREDIS ".ProtocolError", HIREDIS_STATE->HiErr_Base, NULL);
+    HIREDIS_STATE->HiErr_ReplyError =
+        PyErr_NewException(MOD_HIREDIS ".ReplyError", HIREDIS_STATE->HiErr_Base, NULL);
+
+    PyModule_AddObject(mod_hiredis, "HiredisError", HIREDIS_STATE->HiErr_Base);
+    PyModule_AddObject(mod_hiredis, "ProtocolError", HIREDIS_STATE->HiErr_ProtocolError);
+    PyModule_AddObject(mod_hiredis, "ReplyError", HIREDIS_STATE->HiErr_ReplyError);
 
     Py_INCREF(&hiredis_ReaderType);
     PyModule_AddObject(mod_hiredis, "Reader", (PyObject *)&hiredis_ReaderType);
