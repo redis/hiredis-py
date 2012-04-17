@@ -3,16 +3,6 @@ from distutils.core import setup, Extension
 from distutils.command import install_lib as _install_lib
 import sys, imp, os, glob
 
-# Make sure vendor/hiredis is checked out (for development)
-if __name__ == "__main__":
-  # Initialize submodule when not present
-  submodule_status = os.popen("git submodule status", "r").read().strip()
-  if submodule_status[0] == '-':
-    # Submodule has not been updated (see git help submodule)
-    os.system("git submodule update --init")
-  elif submodule_status[0] == '+':
-    print("note: vendor/hiredis submodule revision doesn't match.")
-
 def version():
   module = imp.load_source("hiredis.version", "hiredis/version.py")
   return module.__version__
