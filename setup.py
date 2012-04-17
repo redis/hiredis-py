@@ -11,7 +11,7 @@ if __name__ == "__main__":
     # Submodule has not been updated (see git help submodule)
     os.system("git submodule update --init")
   elif submodule_status[0] == '+':
-    print "note: vendor/hiredis submodule revision doesn't match."
+    print("note: vendor/hiredis submodule revision doesn't match.")
 
 def version():
   module = imp.load_source("hiredis.version", "hiredis/version.py")
