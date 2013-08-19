@@ -1,7 +1,7 @@
 # hiredis-py
 
 Python extension that wraps protocol parsing code in
-[hiredis](http://github.com/antirez/hiredis). It is targeted at speeding up
+[hiredis](https://github.com/redis/hiredis). It is targeted at speeding up
 parsing multi bulk replies.
 
 ## Install
