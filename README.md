@@ -12,7 +12,9 @@ It primarily speeds up parsing of multi bulk replies.
 hiredis-py is available on [PyPi](http://pypi.python.org/pypi/hiredis), and
 can be installed with:
 
-    easy_install hiredis
+```
+easy_install hiredis
+```
 
 ## Usage
 
@@ -30,21 +32,25 @@ replies, `gets` should be called multiple times to extract all replies.
 
 Example:
 
-    >>> reader = hiredis.Reader()
-    >>> reader.feed("$5\r\nhello\r\n")
-    >>> reader.gets()
-    'hello'
+```python
+>>> reader = hiredis.Reader()
+>>> reader.feed("$5\r\nhello\r\n")
+>>> reader.gets()
+'hello'
+```
 
 When the buffer does not contain a full reply, `gets` returns `False`. This
 means extra data is needed and `feed` should be called again before calling
 `gets` again:
 
-    >>> reader.feed("*2\r\n$5\r\nhello\r\n")
-    >>> reader.gets()
-    False
-    >>> reader.feed("$5\r\nworld\r\n")
-    >>> reader.gets()
-    ['hello', 'world']
+```python
+>>> reader.feed("*2\r\n$5\r\nhello\r\n")
+>>> reader.gets()
+False
+>>> reader.feed("$5\r\nworld\r\n")
+>>> reader.gets()
+['hello', 'world']
+```
 
 #### Unicode
 
@@ -52,10 +58,12 @@ means extra data is needed and `feed` should be called again before calling
 To do so, specify the encoding you want to use for decoding replies when
 initializing it:
 
-    >>> reader = hiredis.Reader(encoding="utf-8")
-    >>> reader.feed("$3\r\n\xe2\x98\x83\r\n")
-    >>> reader.gets()
-    u'☃'
+```python
+>>> reader = hiredis.Reader(encoding="utf-8")
+>>> reader.feed("$3\r\n\xe2\x98\x83\r\n")
+>>> reader.gets()
+u'☃'
+```
 
 When bulk data in a reply could not be properly decoded using the specified
 encoding, it will be returned as a plain string. When the encoding cannot be
