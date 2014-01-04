@@ -2,5 +2,8 @@
 
 from unittest import TextTestRunner
 import test
+import sys
 
-TextTestRunner().run(test.tests())
+result = TextTestRunner().run(test.tests())
+if not result.wasSuccessful():
+  sys.exit(1)
