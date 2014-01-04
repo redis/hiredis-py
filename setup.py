@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 from distutils.core import setup, Extension
 from distutils.command import install_lib as _install_lib
 import sys, imp, os, glob
@@ -44,4 +45,16 @@ setup(
 
   # Override "install_lib" command
   cmdclass={ "install_lib": install_lib },
+
+  classifiers=[
+    'Development Status :: 5 - Production/Stable',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: BSD License',
+    'Operating System :: MacOS',
+    'Operating System :: POSIX',
+    'Programming Language :: C',
+    'Programming Language :: Python :: 2',
+    'Programming Language :: Python :: 3',
+    'Topic :: Software Development',
+  ],
 )
