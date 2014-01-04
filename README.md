@@ -1,5 +1,7 @@
 # hiredis-py
 
+[![Build Status](https://travis-ci.org/pietern/hiredis-py.png?branch=master)](https://travis-ci.org/pietern/hiredis-py)
+
 Python extension that wraps protocol parsing code in
 [hiredis](http://github.com/antirez/hiredis). It is targeted at speeding up
 parsing multi bulk replies.
