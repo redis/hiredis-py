@@ -114,6 +114,10 @@ class ReaderTest(TestCase):
     self.reader.feed(b"*2\r\n*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n$1\r\n!\r\n")
     self.assertEquals([[b"hello", b"world"], b"!"], self.reply())
 
+  def test_nested_multi_bulk_depth(self):
+    self.reader.feed(b"*1\r\n*1\r\n*1\r\n*1\r\n$1\r\n!\r\n")
+    self.assertEquals([[[[b"!"]]]], self.reply())
+
   def test_subclassable(self):
     class TestReader(hiredis.Reader):
       def __init__(self, *args, **kwargs):
