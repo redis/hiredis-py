@@ -46,7 +46,7 @@ ext = Extension("hiredis.hiredis",
 setup(
   name="hiredis",
   version=version(),
-  description="Python extension that wraps hiredis",
+  description="Python wrapper for hiredis",
   url="https://github.com/pietern/hiredis-py",
   author="Pieter Noordhuis",
   author_email="pcnoordhuis@gmail.com",
