@@ -97,16 +97,23 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
     return obj;
 }
 
+static void *createError(PyObject *errorCallable, char *errstr, size_t len) {
+    PyObject *obj;
+
+    PyObject *args = Py_BuildValue("(s#)", errstr, len);
+    assert(args != NULL); /* TODO: properly handle OOM etc */
+    obj = PyObject_CallObject(errorCallable, args);
+    assert(obj != NULL);
+    Py_DECREF(args);
+    return obj;
+}
+
 static void *createStringObject(const redisReadTask *task, char *str, size_t len) {
     hiredis_ReaderObject *self = (hiredis_ReaderObject*)task->privdata;
     PyObject *obj;
 
     if (task->type == REDIS_REPLY_ERROR) {
-        PyObject *args = Py_BuildValue("(s#)", str, len);
-        assert(args != NULL); /* TODO: properly handle OOM etc */
-        obj = PyObject_CallObject(self->replyErrorClass, args);
-        assert(obj != NULL);
-        Py_DECREF(args);
+        obj = createError(self->replyErrorClass, str, len);
     } else {
         obj = createDecodedString(self, str, len);
     }
@@ -153,15 +160,11 @@ static void Reader_dealloc(hiredis_ReaderObject *self) {
 }
 
 static int _Reader_set_exception(PyObject **target, PyObject *value) {
-    int subclass;
-    subclass = PyObject_IsSubclass(value, PyExc_Exception);
+    int callable;
+    callable = PyCallable_Check(value);
 
-    if (subclass == -1) {
-        return 0;
-    }
-
-    if (subclass == 0) {
-        PyErr_SetString(PyExc_TypeError, "Expected subclass of Exception");
+    if (callable == 0) {
+        PyErr_SetString(PyExc_TypeError, "Expected a callable");
         return 0;
     }
 
@@ -247,11 +250,17 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
 
 static PyObject *Reader_gets(hiredis_ReaderObject *self) {
     PyObject *obj;
-    char *err;
+    PyObject *err;
+    char *errstr;
 
     if (redisReplyReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
-        err = redisReplyReaderGetError(self->reader);
-        PyErr_SetString(self->protocolErrorClass, err);
+        errstr = redisReplyReaderGetError(self->reader);
+        /* protocolErrorClass might be a callable. call it, then use it's type */
+        err = createError(self->protocolErrorClass, errstr, strlen(errstr));
+        obj = PyObject_Type(err);
+        PyErr_SetString(obj, errstr);
+        Py_DECREF(obj);
+        Py_DECREF(err);
         return NULL;
     }
 
