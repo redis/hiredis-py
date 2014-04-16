@@ -1,6 +1,10 @@
-### 0.1.3 (unreleased)
+### 0.1.4 (unreleased)
 
 ...
+
+### 0.1.3
+
+* Allow `protocolError` and `replyError` to be any type of callable (see #21).
 
 ### 0.1.2
 
