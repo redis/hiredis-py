@@ -24,6 +24,14 @@ class ReaderTest(TestCase):
     self.reader.feed(b"x")
     self.assertRaises(RuntimeError, self.reply)
 
+  def test_protocol_error_with_custom_callable(self):
+    class CustomException(Exception):
+      pass
+
+    self.reader = hiredis.Reader(protocolError=lambda e: CustomException(e))
+    self.reader.feed(b"x")
+    self.assertRaises(CustomException, self.reply)
+
   def test_fail_with_wrong_protocol_error_class(self):
     self.assertRaises(TypeError, hiredis.Reader, protocolError="wrong")
 
@@ -40,6 +48,17 @@ class ReaderTest(TestCase):
     error = self.reply()
 
     self.assertEquals(RuntimeError, type(error))
+    self.assertEquals(("error",), error.args)
+
+  def test_error_string_with_custom_callable(self):
+    class CustomException(Exception):
+      pass
+
+    self.reader = hiredis.Reader(replyError=lambda e: CustomException(e))
+    self.reader.feed(b"-error\r\n")
+    error = self.reply()
+
+    self.assertEquals(CustomException, type(error))
     self.assertEquals(("error",), error.args)
 
   def test_fail_with_wrong_reply_error_class(self):
