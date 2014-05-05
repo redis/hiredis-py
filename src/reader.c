@@ -5,10 +5,16 @@ static void Reader_dealloc(hiredis_ReaderObject *self);
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds);
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args);
+#if PY_VERSION_HEX >= 0x02060000
+static PyObject *Reader_feed_from(hiredis_ReaderObject *self, PyObject *args);
+#endif
 static PyObject *Reader_gets(hiredis_ReaderObject *self);
 
 static PyMethodDef hiredis_ReaderMethods[] = {
     {"feed", (PyCFunction)Reader_feed, METH_VARARGS, NULL },
+#if PY_VERSION_HEX >= 0x02060000
+    {"feed_from", (PyCFunction)Reader_feed_from, METH_VARARGS, NULL },
+#endif
     {"gets", (PyCFunction)Reader_gets, METH_NOARGS, NULL },
     { NULL }  /* Sentinel */
 };
@@ -236,6 +242,38 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
     }
     return (PyObject*)self;
 }
+
+#if PY_VERSION_HEX >= 0x02060000
+static PyObject *Reader_feed_from(hiredis_ReaderObject *self, PyObject *args) {
+    Py_buffer buf;
+    Py_ssize_t offset = 0, len = -1;
+
+    if (!PyArg_ParseTuple(args, "s*|nn", &buf, &offset, &len))
+        return NULL;
+
+    if (len == -1)
+        len = buf.len - offset;
+
+    if (offset < 0 || len < 0) {
+        PyErr_SetString(PyExc_ValueError,
+                        "negative input");
+        goto error;
+    }
+
+    if (offset >= buf.len || offset + len > buf.len) {
+        PyErr_SetString(PyExc_ValueError,
+                        "input is larger than buffer size");
+        goto error;
+    }
+
+    redisReplyReaderFeed(self->reader, (const char *)buf.buf + offset, len);
+    PyBuffer_Release(&buf);
+    Py_RETURN_NONE;
+error:
+    PyBuffer_Release(&buf);
+    return NULL;
+}
+#endif
 
 static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
     const char *str;
