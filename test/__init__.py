@@ -13,4 +13,5 @@ from . import reader
 def tests():
   suite = TestSuite()
   suite.addTest(makeSuite(reader.ReaderTest))
+  suite.addTest(makeSuite(reader.ReaderTestRecvFrom))
   return suite
