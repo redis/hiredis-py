@@ -16,9 +16,12 @@ can be installed with:
 easy_install hiredis
 ```
 
-### Compatibility
+### Requirements
 
 hiredis-py requires **Python 2.6 or higher**.
+
+Make sure Python development headers are available when installing hiredis-py.
+On Ubuntu/Debian systems, install them with `apt-get install python-dev`.
 
 ## Usage
 
