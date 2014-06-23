@@ -16,6 +16,10 @@ can be installed with:
 easy_install hiredis
 ```
 
+### Compatibility
+
+hiredis-py requires **Python 2.6 or higher**.
+
 ## Usage
 
 The `hiredis` module contains the `Reader` class. This class is responsible for
