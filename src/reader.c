@@ -239,14 +239,35 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 }
 
 static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
-    const char *str;
-    int len;
+    Py_buffer buf;
+    Py_ssize_t off = 0;
+    Py_ssize_t len = -1;
 
-    if (!PyArg_ParseTuple(args, "s#", &str, &len))
+    if (!PyArg_ParseTuple(args, "s*|nn", &buf, &off, &len)) {
         return NULL;
+    }
 
-    redisReplyReaderFeed(self->reader, str, len);
+    if (len == -1) {
+      len = buf.len - off;
+    }
+
+    if (off < 0 || len < 0) {
+      PyErr_SetString(PyExc_ValueError, "negative input");
+      goto error;
+    }
+
+    if ((off + len) > buf.len) {
+      PyErr_SetString(PyExc_ValueError, "input is larger than buffer size");
+      goto error;
+    }
+
+    redisReplyReaderFeed(self->reader, buf.buf + off, len);
+    PyBuffer_Release(&buf);
     Py_RETURN_NONE;
+
+error:
+    PyBuffer_Release(&buf);
+    return NULL;
 }
 
 static PyObject *Reader_gets(hiredis_ReaderObject *self) {

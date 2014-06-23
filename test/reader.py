@@ -1,6 +1,7 @@
 # coding=utf-8
 from unittest import *
 import hiredis
+import sys
 
 class ReaderTest(TestCase):
   def setUp(self):
@@ -145,3 +146,26 @@ class ReaderTest(TestCase):
     reader = TestReader()
     reader.feed(b"+ok\r\n")
     self.assertEquals(b"ok", reader.gets())
+
+  def test_invalid_offset(self):
+    data = b"+ok\r\n"
+    self.assertRaises(ValueError, self.reader.feed, data, 6)
+
+  def test_invalid_length(self):
+    data = b"+ok\r\n"
+    self.assertRaises(ValueError, self.reader.feed, data, 0, 6)
+
+  def test_ok_offset(self):
+    data = b"blah+ok\r\n"
+    self.reader.feed(data, 4)
+    self.assertEquals(b"ok", self.reply())
+
+  def test_ok_length(self):
+    data = b"blah+ok\r\n"
+    self.reader.feed(data, 4, len(data)-4)
+    self.assertEquals(b"ok", self.reply())
+
+  def test_feed_bytearray(self):
+    if sys.hexversion >= 0x02060000:
+      self.reader.feed(bytearray(b"+ok\r\n"))
+      self.assertEquals(b"ok", self.reply())
