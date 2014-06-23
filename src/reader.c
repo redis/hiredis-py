@@ -1,5 +1,6 @@
-#include <assert.h>
 #include "reader.h"
+
+#include <assert.h>
 
 static void Reader_dealloc(hiredis_ReaderObject *self);
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds);
