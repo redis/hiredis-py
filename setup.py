@@ -47,7 +47,7 @@ setup(
   name="hiredis",
   version=version(),
   description="Python wrapper for hiredis",
-  url="https://github.com/pietern/hiredis-py",
+  url="https://github.com/redis/hiredis-py",
   author="Pieter Noordhuis",
   author_email="pcnoordhuis@gmail.com",
   keywords=["Redis"],
