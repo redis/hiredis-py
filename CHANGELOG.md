@@ -1,6 +1,10 @@
-### 0.1.4 (unreleased)
+### 0.1.5 (unreleased)
 
 ...
+
+### 0.1.4
+
+* Allow any buffer compatible object as argument to feed (see #22).
 
 ### 0.1.3
 
