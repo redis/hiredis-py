@@ -156,6 +156,8 @@ static void Reader_dealloc(hiredis_ReaderObject *self) {
     redisReplyReaderFree(self->reader);
     if (self->encoding)
         free(self->encoding);
+    Py_XDECREF(self->protocolErrorClass);
+    Py_XDECREF(self->replyErrorClass);
 
     ((PyObject *)self)->ob_type->tp_free((PyObject*)self);
 }
