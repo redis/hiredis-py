@@ -1,6 +1,8 @@
-### 0.1.5 (unreleased)
+### 0.1.6 (unreleased)
 
-...
+### 0.1.5
+
+* Fix memory leak when many reader instances are created (see #26).
 
 ### 0.1.4
 
