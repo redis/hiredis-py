@@ -223,7 +223,7 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
     hiredis_ReaderObject *self;
     self = (hiredis_ReaderObject*)type->tp_alloc(type, 0);
     if (self != NULL) {
-        self->reader = redisReplyReaderCreate();
+        self->reader = redisReaderCreateWithFunctions(NULL);
         self->reader->fn = &hiredis_ObjectFunctions;
         self->reader->privdata = self;
 
@@ -263,7 +263,7 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
       goto error;
     }
 
-    redisReplyReaderFeed(self->reader, buf.buf + off, len);
+    redisReplyReaderFeed(self->reader, (char *)buf.buf + off, len);
     PyBuffer_Release(&buf);
     Py_RETURN_NONE;
 
