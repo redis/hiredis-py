@@ -223,7 +223,7 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
     hiredis_ReaderObject *self;
     self = (hiredis_ReaderObject*)type->tp_alloc(type, 0);
     if (self != NULL) {
-        self->reader = redisReplyReaderCreate();
+        self->reader = redisReaderCreateWithFunctions(NULL);
         self->reader->fn = &hiredis_ObjectFunctions;
         self->reader->privdata = self;
 
