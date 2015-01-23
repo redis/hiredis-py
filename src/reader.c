@@ -263,7 +263,7 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
       goto error;
     }
 
-    redisReplyReaderFeed(self->reader, buf.buf + off, len);
+    redisReplyReaderFeed(self->reader, (char *)buf.buf + off, len);
     PyBuffer_Release(&buf);
     Py_RETURN_NONE;
 
