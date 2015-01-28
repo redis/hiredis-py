@@ -1,4 +1,6 @@
-### 0.1.6 (unreleased)
+### 0.1.6
+
+* Updated with hiredis 0.12.1 — now only uses Redis parser, not entire library (#30).
 
 ### 0.1.5
 
