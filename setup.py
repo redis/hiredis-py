@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
-from distutils.core import setup, Extension
-from distutils.command import install_lib as _install_lib
+try:
+  from setuptools import setup, Extension
+  from setuptools.command import install_lib as _install_lib
+except ImportError:
+  from distutils.core import setup, Extension
+  from distutils.command import install_lib as _install_lib
 import sys, imp, os, glob
 
 def version():
