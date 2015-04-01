@@ -7,10 +7,14 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args);
 static PyObject *Reader_gets(hiredis_ReaderObject *self);
+static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg);
+static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self);
 
 static PyMethodDef hiredis_ReaderMethods[] = {
     {"feed", (PyCFunction)Reader_feed, METH_VARARGS, NULL },
     {"gets", (PyCFunction)Reader_gets, METH_NOARGS, NULL },
+    {"setmaxbuf", (PyCFunction)Reader_setmaxbuf, METH_O, NULL },
+    {"getmaxbuf", (PyCFunction)Reader_getmaxbuf, METH_NOARGS, NULL },
     { NULL }  /* Sentinel */
 };
 
@@ -303,4 +307,28 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self) {
         }
         return obj;
     }
+}
+
+static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg) {
+    long maxbuf;
+
+    if (arg == Py_None)
+        maxbuf = REDIS_READER_MAX_BUF;
+    else {
+        maxbuf = PyLong_AsLong(arg);
+        if (maxbuf < 0) {
+            if (!PyErr_Occurred())
+                PyErr_SetString(PyExc_ValueError,
+                                "maxbuf value out of range");
+            return NULL;
+        }
+    }
+    self->reader->maxbuf = maxbuf;
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self) {
+    return PyLong_FromSize_t(self->reader->maxbuf);
 }
