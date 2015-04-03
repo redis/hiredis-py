@@ -1,4 +1,10 @@
-### 0.1.6
+### 0.2.0 (2015-04-03)
+
+* Allow usage of setuptools
+* Upgrade to latest hiredis including basic Windows support
+* Expose hiredis maxbuf settings in python
+
+### 0.1.6 (2015-01-28)
 
 * Updated with hiredis 0.12.1 — now only uses Redis parser, not entire library (#30).
 
