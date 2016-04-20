@@ -21,7 +21,8 @@ easy_install hiredis
 hiredis-py requires **Python 2.6 or higher**.
 
 Make sure Python development headers are available when installing hiredis-py.
-On Ubuntu/Debian systems, install them with `apt-get install python-dev`.
+On Ubuntu/Debian systems, install them with `apt-get install python-dev` for Python 2
+or `apt-get install python3-dev` for Python 3.
 
 ## Usage
 
