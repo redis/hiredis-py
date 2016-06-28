@@ -1,3 +1,6 @@
+from __future__ import unicode_literals
+from glob import glob
+
 import os
 from cffi import FFI
 
@@ -23,7 +26,7 @@ typedef struct redisReadTask {
     int idx;
     void *obj;
     struct redisReadTask *parent;
-void *privdata;
+    void *privdata;
 } redisReadTask;
 
 typedef struct redisReplyObjectFunctions {
@@ -39,6 +42,7 @@ typedef struct redisReader {
     char errstr[...];
     redisReplyObjectFunctions *fn;
     void *privdata;
+    size_t maxbuf;
     ...;
 } redisReader;
 
@@ -48,11 +52,24 @@ int redisReaderFeed(redisReader *r, const char *buf, size_t len);
 int redisReaderGetReply(redisReader *r, void **reply);
 """)
 
+c_files = ['read', 'sds', 'hiredis', 'net']
 
-ffi.set_source('_cffi._hiredis',
-"""
+sources = """
 #include <hiredis.h>
-""", include_dirs=[vendored_hiredis], libraries=['hiredis_for_hiredis_py'])
+#include <read.h>
+#include <sds.h>
+"""
+
+for c_file in c_files:
+    path = os.path.join(vendored_hiredis, '%s.c' % c_file)
+    with open(path, 'rb') as f:
+        sources += f.read()
+
+    sources += "\n"
+
+
+ffi.set_source('hiredis._cffi._hiredis',
+               sources, include_dirs=[vendored_hiredis])
 
 if __name__ == "__main__":
-    ffi.compile()
+    ffi.compile(verbose=True)

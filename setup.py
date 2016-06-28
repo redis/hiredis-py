@@ -73,9 +73,6 @@ setup(
     keywords=["Redis"],
     license="BSD",
     packages=["hiredis"],
-    # Override "install_lib" command
-    cmdclass={"install_lib": install_lib},
-
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',

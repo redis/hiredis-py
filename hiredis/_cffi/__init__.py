@@ -1,5 +1,7 @@
 from hiredis._cffi._hiredis import ffi, lib
 
+REDIS_READER_MAX_BUF = 1024 * 16
+
 
 class HiredisError(Exception):
     pass
@@ -70,12 +72,12 @@ class Reader(object):
         self._reader.fn.createNil = self._create_nil
         self._reader.fn.freeObject = self._free_object
 
-    @ffi.callback("void * (const redisReadTask*, char*, size_t)")
-    def _create_string(self, s, length):
-        self = ffi.cast("redisReadTask*", self)
-        self = ffi.from_handle(self.privdata)
+    @ffi.callback("void * (redisReadTask*, char*, size_t)")
+    def _create_string(task, s, length):
+        task = ffi.cast("redisReadTask*", task)
+        self = ffi.from_handle(task.privdata)
         data = ffi.string(s, length)
-        if self.type == lib.REDIS_REPLY_ERROR:
+        if task.type == lib.REDIS_REPLY_ERROR:
             data = self._reply_error(data)
         elif self._encoding is not None:
             try:
@@ -86,33 +88,33 @@ class Reader(object):
             except Exception as err:
                 self._exception = err
                 data = None
-        _parentize(self, data)
+        _parentize(task, data)
         return _global_handles.new(data)
 
-    @ffi.callback("void *(const redisReadTask*, int)")
-    def _create_array(self, i):
-        self = ffi.cast("redisReadTask*", self)
+    @ffi.callback("void *(redisReadTask*, int)")
+    def _create_array(task, i):
+        task = ffi.cast("redisReadTask*", task)
         data = [None] * i
-        _parentize(self, data)
+        _parentize(task, data)
         return _global_handles.new(data)
 
-    @ffi.callback("void *(const redisReadTask*, long long)")
-    def _create_integer(self, n):
-        self = ffi.cast("redisReadTask*", self)
+    @ffi.callback("void *(redisReadTask*, long long)")
+    def _create_integer(task, n):
+        task = ffi.cast("redisReadTask*", task)
         data = n
-        _parentize(self, data)
+        _parentize(task, data)
         return _global_handles.new(data)
 
-    @ffi.callback("void *(const redisReadTask*)")
-    def _create_nil(self):
-        self = ffi.cast("redisReadTask*", self)
+    @ffi.callback("void *(redisReadTask*)")
+    def _create_nil(task):
+        task = ffi.cast("redisReadTask*", task)
         data = None
-        _parentize(self, data)
+        _parentize(task, data)
         return _global_handles.new(data)
 
     @ffi.callback("void (void*)")
-    def _free_object(self):
-        _global_handles.free(self)
+    def _free_object(obj):
+        _global_handles.free(obj)
 
     def feed(self, buf, offset=None, length=None):
         if offset is None:
@@ -150,3 +152,15 @@ class Reader(object):
             raise err
 
         return _global_handles.free(reply[0])
+
+    def getmaxbuf(self):
+        return self._reader.maxbuf
+
+    def setmaxbuf(self, maxbuf):
+        if maxbuf is None:
+            maxbuf = REDIS_READER_MAX_BUF
+
+        if maxbuf < 0:
+            raise ValueError("maxbuf value out of range")
+
+        self._reader.maxbuf = maxbuf
