@@ -1,7 +1,13 @@
+from sys import version_info
+
 from hiredis._cffi._hiredis import ffi, lib
 
 REDIS_READER_MAX_BUF = 1024 * 16
 
+if version_info[0] == 3:
+    int_type = int
+else:
+    int_type = long
 
 class HiredisError(Exception):
     pass
@@ -101,7 +107,7 @@ class Reader(object):
     @ffi.callback("void *(redisReadTask*, long long)")
     def _create_integer(task, n):
         task = ffi.cast("redisReadTask*", task)
-        data = n
+        data = int_type(n)
         _parentize(task, data)
         return _global_handles.new(data)
 
