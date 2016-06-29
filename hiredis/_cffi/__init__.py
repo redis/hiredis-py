@@ -48,7 +48,7 @@ def _parentize(task, obj):
     if task and task.parent:
         parent = _global_handles.get(task.parent.obj)
         assert isinstance(parent, list)
-        parent[task.idx] = (obj)
+        parent[task.idx] = obj
 
 
 @ffi.def_extern()
