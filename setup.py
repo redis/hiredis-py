@@ -60,7 +60,8 @@ else:
 
     setup_extra = {
         'libraries': [lib],
-        'ext_modules': [ext]
+        'ext_modules': [ext],
+        'cmdclass': {"install_lib": install_lib}
     }
 
 setup(
