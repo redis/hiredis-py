@@ -50,6 +50,12 @@ redisReader *redisReaderCreate(void);
 void redisReaderFree(redisReader *r);
 int redisReaderFeed(redisReader *r, const char *buf, size_t len);
 int redisReaderGetReply(redisReader *r, void **reply);
+
+extern "Python" void *create_string(const redisReadTask*, char*, size_t);
+extern "Python" void *create_array(const redisReadTask*, int);
+extern "Python" void *create_integer(const redisReadTask*, long long);
+extern "Python" void *create_nil(const redisReadTask*);
+extern "Python" void free_object(void*);
 """)
 
 c_files = ['read', 'sds', 'hiredis', 'net']

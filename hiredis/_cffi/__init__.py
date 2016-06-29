@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from sys import version_info
 
 from hiredis._cffi._hiredis import ffi, lib
@@ -8,6 +9,7 @@ if version_info[0] == 3:
     int_type = int
 else:
     int_type = long
+
 
 class HiredisError(Exception):
     pass
@@ -49,8 +51,57 @@ def _parentize(task, obj):
         parent[task.idx] = (obj)
 
 
+@ffi.def_extern()
+def create_string(task, s, length):
+    task = ffi.cast("redisReadTask*", task)
+    self = ffi.from_handle(task.privdata)
+    data = ffi.string(s, length)
+    if task.type == lib.REDIS_REPLY_ERROR:
+        data = self._reply_error(data)
+    elif self._encoding is not None:
+        try:
+            data = data.decode(self._encoding)
+        except ValueError:
+            # for compatibility with hiredis
+            pass
+        except Exception as err:
+            self._exception = err
+            data = None
+    _parentize(task, data)
+    return _global_handles.new(data)
+
+
+@ffi.def_extern()
+def create_array(task, i):
+    task = ffi.cast("redisReadTask*", task)
+    data = [None] * i
+    _parentize(task, data)
+    return _global_handles.new(data)
+
+
+@ffi.def_extern()
+def create_integer(task, n):
+    task = ffi.cast("redisReadTask*", task)
+    data = int_type(n)
+    _parentize(task, data)
+    return _global_handles.new(data)
+
+
+@ffi.def_extern()
+def create_nil(task):
+    task = ffi.cast("redisReadTask*", task)
+    data = None
+    _parentize(task, data)
+    return _global_handles.new(data)
+
+
+@ffi.def_extern()
+def free_object(obj):
+    _global_handles.free(obj)
+
+
 class Reader(object):
-    "Hiredis protocol reader"
+    """Hiredis protocol reader"""
 
     def __init__(self, protocolError=None, replyError=None, encoding=None):
         self._protocol_error = ProtocolError
@@ -72,55 +123,11 @@ class Reader(object):
 
         self._reader = lib.redisReaderCreate()
         self._reader.privdata = self._self_handle
-        self._reader.fn.createString = self._create_string
-        self._reader.fn.createArray = self._create_array
-        self._reader.fn.createInteger = self._create_integer
-        self._reader.fn.createNil = self._create_nil
-        self._reader.fn.freeObject = self._free_object
-
-    @ffi.callback("void * (redisReadTask*, char*, size_t)")
-    def _create_string(task, s, length):
-        task = ffi.cast("redisReadTask*", task)
-        self = ffi.from_handle(task.privdata)
-        data = ffi.string(s, length)
-        if task.type == lib.REDIS_REPLY_ERROR:
-            data = self._reply_error(data)
-        elif self._encoding is not None:
-            try:
-                data = data.decode(self._encoding)
-            except ValueError:
-                # for compatibility with hiredis
-                pass
-            except Exception as err:
-                self._exception = err
-                data = None
-        _parentize(task, data)
-        return _global_handles.new(data)
-
-    @ffi.callback("void *(redisReadTask*, int)")
-    def _create_array(task, i):
-        task = ffi.cast("redisReadTask*", task)
-        data = [None] * i
-        _parentize(task, data)
-        return _global_handles.new(data)
-
-    @ffi.callback("void *(redisReadTask*, long long)")
-    def _create_integer(task, n):
-        task = ffi.cast("redisReadTask*", task)
-        data = int_type(n)
-        _parentize(task, data)
-        return _global_handles.new(data)
-
-    @ffi.callback("void *(redisReadTask*)")
-    def _create_nil(task):
-        task = ffi.cast("redisReadTask*", task)
-        data = None
-        _parentize(task, data)
-        return _global_handles.new(data)
-
-    @ffi.callback("void (void*)")
-    def _free_object(obj):
-        _global_handles.free(obj)
+        self._reader.fn.createString = lib.create_string
+        self._reader.fn.createArray = lib.create_array
+        self._reader.fn.createInteger = lib.create_integer
+        self._reader.fn.createNil = lib.create_nil
+        self._reader.fn.freeObject = lib.free_object
 
     def feed(self, buf, offset=None, length=None):
         if offset is None:
