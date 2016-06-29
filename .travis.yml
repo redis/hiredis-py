@@ -23,6 +23,6 @@ install:
           virtualenv --python="$PYENV_ROOT/versions/pypy-$PYPY_VERSION/bin/python" "$HOME/virtualenvs/pypy-$PYPY_VERSION"
           source "$HOME/virtualenvs/pypy-$PYPY_VERSION/bin/activate"
         fi
-    - "python setup.py develop"
+    - "pip install ."
 
 script: "python test.py"
