@@ -44,7 +44,7 @@ lib = ("hiredis_for_hiredis_py", {
   "sources": ["vendor/hiredis/%s.c" % src for src in ("read", "sds")]})
 
 ext = Extension("hiredis.hiredis",
-  sources=glob.glob("src/*.c"),
+  sources=sorted(glob.glob("src/*.c")),
   include_dirs=["vendor"])
 
 setup(
