@@ -63,8 +63,11 @@ PyMODINIT_FUNC inithiredis(void)
     HIREDIS_STATE->HiErr_ReplyError =
         PyErr_NewException(MOD_HIREDIS ".ReplyError", HIREDIS_STATE->HiErr_Base, NULL);
 
+    Py_INCREF(HIREDIS_STATE->HiErr_Base);
     PyModule_AddObject(mod_hiredis, "HiredisError", HIREDIS_STATE->HiErr_Base);
+    Py_INCREF(HIREDIS_STATE->HiErr_ProtocolError);
     PyModule_AddObject(mod_hiredis, "ProtocolError", HIREDIS_STATE->HiErr_ProtocolError);
+    Py_INCREF(HIREDIS_STATE->HiErr_ReplyError);
     PyModule_AddObject(mod_hiredis, "ReplyError", HIREDIS_STATE->HiErr_ReplyError);
 
     Py_INCREF(&hiredis_ReaderType);
