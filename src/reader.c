@@ -134,7 +134,10 @@ static void *createArrayObject(const redisReadTask *task, int elements) {
 
 static void *createIntegerObject(const redisReadTask *task, long long value) {
     PyObject *obj;
-    obj = PyLong_FromLongLong(value);
+    if (value >= LONG_MIN && value <= LONG_MAX)
+        obj = PyInt_FromLong((long)value);
+    else
+        obj = PyLong_FromLongLong(value);
     return tryParentize(task, obj);
 }
 
