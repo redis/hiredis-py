@@ -116,7 +116,7 @@ static void *createError(PyObject *errorCallable, char *errstr, size_t len) {
 
     obj = PyObject_CallFunctionObjArgs(errorCallable, errmsg, NULL);
     Py_DECREF(errmsg);
-    assert(obj != NULL);
+    /* obj can be NULL if custom error class raised another exception */
 
     return obj;
 }
@@ -127,10 +127,17 @@ static void *createStringObject(const redisReadTask *task, char *str, size_t len
 
     if (task->type == REDIS_REPLY_ERROR) {
         obj = createError(self->replyErrorClass, str, len);
+        if (obj == NULL) {
+            if (self->error.ptype == NULL)
+                PyErr_Fetch(&(self->error.ptype), &(self->error.pvalue),
+                        &(self->error.ptraceback));
+            obj = Py_None;
+            Py_INCREF(obj);
+        }
     } else {
         obj = createDecodedString(self, str, len);
     }
-
+    assert(obj != NULL);
     return tryParentize(task, obj);
 }
 
@@ -293,10 +300,12 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self) {
         errstr = redisReplyReaderGetError(self->reader);
         /* protocolErrorClass might be a callable. call it, then use it's type */
         err = createError(self->protocolErrorClass, errstr, strlen(errstr));
-        obj = PyObject_Type(err);
-        PyErr_SetString(obj, errstr);
-        Py_DECREF(obj);
-        Py_DECREF(err);
+        if (err != NULL) {
+            obj = PyObject_Type(err);
+            PyErr_SetString(obj, errstr);
+            Py_DECREF(obj);
+            Py_DECREF(err);
+        }
         return NULL;
     }
 
