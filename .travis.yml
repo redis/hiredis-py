@@ -9,6 +9,12 @@ python:
   - "3.5"
   - "3.6"
 
+branches:
+  only:
+    - staging
+    - trying
+    - master
+
 install: "python setup.py build"
 
 script: "python test.py"
