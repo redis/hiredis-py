@@ -179,3 +179,18 @@ class ReaderTest(TestCase):
     self.reader.setmaxbuf(None)
     self.assertEquals(defaultmaxbuf, self.reader.getmaxbuf())
     self.assertRaises(ValueError, self.reader.setmaxbuf, -4)
+
+  def test_len(self):
+    self.assertEquals(0, self.reader.len())
+    data = b"+ok\r\n"
+    self.reader.feed(data)
+    self.assertEquals(len(data), self.reader.len())
+ 
+    # hiredis reallocates and removes unused buffer once
+    # there is at least 1K of not used data.
+    calls = int((1024 / len(data))) + 1
+    for i in range(calls):
+        self.reader.feed(data)
+        self.reply()
+
+    self.assertEquals(5, self.reader.len())
