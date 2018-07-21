@@ -62,6 +62,13 @@ class ReaderTest(TestCase):
     self.assertEquals(CustomException, type(error))
     self.assertEquals(("error",), error.args)
 
+  def test_error_string_with_non_utf8_chars(self):
+    self.reader.feed(b"-error \xd1\r\n")
+    error = self.reply()
+
+    self.assertEquals(hiredis.ReplyError, type(error))
+    self.assertEquals((b"error \xd1",), error.args)
+
   def test_fail_with_wrong_reply_error_class(self):
     self.assertRaises(TypeError, hiredis.Reader, replyError="wrong")
 
@@ -69,6 +76,13 @@ class ReaderTest(TestCase):
     self.reader.feed(b"*2\r\n-err0\r\n-err1\r\n")
 
     for r, error in zip(("err0", "err1"), self.reply()):
+      self.assertEquals(hiredis.ReplyError, type(error))
+      self.assertEquals((r,), error.args)
+
+  def test_errors_with_non_utf8_chars_in_nested_multi_bulk(self):
+    self.reader.feed(b"*2\r\n-err\xd1\r\n-err1\r\n")
+
+    for r, error in zip((b"err\xd1", "err1"), self.reply()):
       self.assertEquals(hiredis.ReplyError, type(error))
       self.assertEquals((r,), error.args)
 
@@ -185,7 +199,7 @@ class ReaderTest(TestCase):
     data = b"+ok\r\n"
     self.reader.feed(data)
     self.assertEquals(len(data), self.reader.len())
- 
+
     # hiredis reallocates and removes unused buffer once
     # there is at least 1K of not used data.
     calls = int((1024 / len(data))) + 1
