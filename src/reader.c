@@ -107,7 +107,19 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
 static void *createError(PyObject *errorCallable, char *errstr, size_t len) {
     PyObject *obj;
 
+    /* "s" stands for "string" (string object, byte string) in Python 2
+     * and "str" (str object, unicode string) in Python 3 */
     PyObject *args = Py_BuildValue("(s#)", errstr, len);
+    if (args == NULL) {
+        #if IS_PY3K
+        /* Clear an error indicator and construct bytes object ("y") instead of str
+         * in case of UnicodeDecodeError (e.g., malformed utf-8 string) in Python 3 */
+        if (PyErr_ExceptionMatches(PyExc_UnicodeDecodeError)) {
+            PyErr_Clear();
+            args = Py_BuildValue("(y#)", errstr, len);
+        }
+        #endif
+    }
     assert(args != NULL); /* TODO: properly handle OOM etc */
     obj = PyObject_CallObject(errorCallable, args);
     assert(obj != NULL);
