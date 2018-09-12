@@ -25,8 +25,8 @@ struct hiredis_ModuleState {
 #if IS_PY3K
 #define GET_STATE(__s) ((struct hiredis_ModuleState*)PyModule_GetState(__s))
 #else
-extern struct hiredis_ModuleState state;
-#define GET_STATE(__s) (&state)
+extern struct hiredis_ModuleState hiredis_py_module_state;
+#define GET_STATE(__s) (&hiredis_py_module_state)
 #endif
 
 /* Keep pointer around for other classes to access the module state. */

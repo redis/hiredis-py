@@ -28,7 +28,7 @@ static struct PyModuleDef hiredis_ModuleDef = {
     NULL /* m_free */
 };
 #else
-struct hiredis_ModuleState state;
+struct hiredis_ModuleState hiredis_py_module_state;
 #endif
 
 /* Keep pointer around for other classes to access the module state. */
