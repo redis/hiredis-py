@@ -105,10 +105,18 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
 }
 
 static void *createError(PyObject *errorCallable, char *errstr, size_t len) {
-    PyObject *obj;
+    PyObject *obj, *errmsg, *args;
 
-    PyObject *args = Py_BuildValue("(s#)", errstr, len);
-    assert(args != NULL); /* TODO: properly handle OOM etc */
+    #if IS_PY3K
+    errmsg = PyUnicode_DecodeUTF8(errstr, len, "replace");
+    #else
+    errmsg = Py_BuildValue("s#", errstr, len);
+    #endif
+    assert(errmsg != NULL); /* TODO: properly handle OOM etc */
+
+    args = PyTuple_Pack(1, errmsg);
+    assert(args != NULL);
+    Py_DECREF(errmsg);
     obj = PyObject_CallObject(errorCallable, args);
     assert(obj != NULL);
     Py_DECREF(args);
