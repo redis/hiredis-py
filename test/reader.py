@@ -3,6 +3,8 @@ from unittest import *
 import hiredis
 import sys
 
+IS_PY3K = sys.version_info[0] >= 3
+
 class ReaderTest(TestCase):
   def setUp(self):
     self.reader = hiredis.Reader()
@@ -66,8 +68,13 @@ class ReaderTest(TestCase):
     self.reader.feed(b"-error \xd1\r\n")
     error = self.reply()
 
+    if IS_PY3K:
+      expected = "error \ufffd"
+    else:
+      expected = b"error \xd1"
+
     self.assertEquals(hiredis.ReplyError, type(error))
-    self.assertEquals((b"error \xd1",), error.args)
+    self.assertEquals((expected,), error.args)
 
   def test_fail_with_wrong_reply_error_class(self):
     self.assertRaises(TypeError, hiredis.Reader, replyError="wrong")
@@ -82,7 +89,12 @@ class ReaderTest(TestCase):
   def test_errors_with_non_utf8_chars_in_nested_multi_bulk(self):
     self.reader.feed(b"*2\r\n-err\xd1\r\n-err1\r\n")
 
-    for r, error in zip((b"err\xd1", "err1"), self.reply()):
+    if IS_PY3K:
+      expected = "err\ufffd"
+    else:
+      expected = b"err\xd1"
+
+    for r, error in zip((expected, "err1"), self.reply()):
       self.assertEquals(hiredis.ReplyError, type(error))
       self.assertEquals((r,), error.args)
 
