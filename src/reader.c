@@ -137,7 +137,6 @@ static void *createStringObject(const redisReadTask *task, char *str, size_t len
     } else {
         obj = createDecodedString(self, str, len);
     }
-    assert(obj != NULL);
     return tryParentize(task, obj);
 }
 
