@@ -15,6 +15,21 @@ matrix:
   - python: "3.7"
     dist: xenial
     sudo: required
+  # linux wheels
+  - dist: trusty
+    sudo: required
+    services:
+      - docker
+    env: HIREDIS_PY_BUILDWHEELS=1
+  # osx wheels
+  - os: osx
+    osx_image: xcode9.4
+    language: generic
+    env: HIREDIS_PY_BUILDWHEELS=1
+    python: "3.6"
+    before_install:
+      - SSL_CERT_FILE=$(brew --prefix)/etc/openssl/cert.pem
+      - sudo pip install -U pip setuptools twine
 
 branches:
   only:
@@ -24,6 +39,48 @@ branches:
 
 install:
   - if [[ $TRAVIS_PYTHON_VERSION == "3.2" ]]; then travis_retry pip install --upgrade "setuptools<30.0.0"; fi
-  - python setup.py build
+  - |
+    if [ -n "${HIREDIS_PY_BUILDWHEELS:-}" ]; then
+      pip install cibuildwheel
+    else
+      python setup.py build
+    fi
 
-script: "python test.py"
+script:
+  - |
+    if [ -n "${HIREDIS_PY_BUILDWHEELS:-}" ]; then
+      cibuildwheel --output-dir dist
+    else
+      python test.py
+    fi
+
+before_deploy: ls dist/
+
+deploy:
+  # deploy master non-tags to Test PyPI
+  - provider: pypi
+    user: ifduyue
+    password:
+      secure: "Hn8n7k11TQQF2PWbx8aYhVf6j5bVh8s9/5HuA0eEW4Vl3TmBzyrh2OPKPgrlh9WLvkBUyl0SJzvqxh+SOKP3dg6XOItvZzm/ZnN77gVbrMkjpNOmfENb6Amdx7y1uDG60UFd5H35D8SoinGmW9QSyxMjB7eIH+qybGUXoSV4BaM="
+    server: https://test.pypi.org/legacy/
+    distributions: sdist
+    skip_existing: true
+    skip_cleanup: true
+    on:
+      repo: redis/hiredis-py
+      tags: false
+      branch: master
+      condition: -n "${HIREDIS_PY_BUILDWHEELS:-}"
+
+  # deploy tags to PyPI
+  - provider: pypi
+    user: ifduyue
+    password:
+      secure: "WgO8677gsCeftEIdozL5albCmXuVwuyHLZur6mP1cvEGDGdzatDCwZJkM1pdOCy4xXYYz3+bMsya5gLbQmGZOYBzieAb4CYR+O38Kd0mVCoZpK7TYmN55G+Tn3bztxFOBtInqd9bf1JkPE5eXN7Lc4rkMhMmafxoN8aBVPlfhRM="
+    distributions: sdist
+    skip_existing: true
+    skip_cleanup: true
+    on:
+      repo: redis/hiredis-py
+      tags: true
+      condition: -n "${HIREDIS_PY_BUILDWHEELS:-}"
