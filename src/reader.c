@@ -6,7 +6,7 @@ static void Reader_dealloc(hiredis_ReaderObject *self);
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds);
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args);
-static PyObject *Reader_gets(hiredis_ReaderObject *self);
+static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args);
 static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg);
 static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self);
 static PyObject *Reader_len(hiredis_ReaderObject *self);
@@ -14,7 +14,7 @@ static PyObject *Reader_has_data(hiredis_ReaderObject *self);
 
 static PyMethodDef hiredis_ReaderMethods[] = {
     {"feed", (PyCFunction)Reader_feed, METH_VARARGS, NULL },
-    {"gets", (PyCFunction)Reader_gets, METH_NOARGS, NULL },
+    {"gets", (PyCFunction)Reader_gets, METH_VARARGS, NULL },
     {"setmaxbuf", (PyCFunction)Reader_setmaxbuf, METH_O, NULL },
     {"getmaxbuf", (PyCFunction)Reader_getmaxbuf, METH_NOARGS, NULL },
     {"len", (PyCFunction)Reader_len, METH_NOARGS, NULL },
@@ -76,7 +76,7 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
 static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str, size_t len) {
     PyObject *obj;
 
-    if (self->encoding == NULL) {
+    if (self->encoding == NULL || !self->shouldDecode) {
         obj = PyBytes_FromStringAndSize(str, len);
     } else {
         obj = PyUnicode_Decode(str, len, self->encoding, NULL);
@@ -248,6 +248,7 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         self->reader->privdata = self;
 
         self->encoding = NULL;
+        self->shouldDecode = 1;
         self->protocolErrorClass = HIREDIS_STATE->HiErr_ProtocolError;
         self->replyErrorClass = HIREDIS_STATE->HiErr_ReplyError;
         Py_INCREF(self->protocolErrorClass);
@@ -292,10 +293,15 @@ error:
     return NULL;
 }
 
-static PyObject *Reader_gets(hiredis_ReaderObject *self) {
+static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
     PyObject *obj;
     PyObject *err;
     char *errstr;
+
+    self->shouldDecode = 1;
+    if (!PyArg_ParseTuple(args, "|i", &self->shouldDecode)) {
+        return NULL;
+    }
 
     if (redisReplyReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
         errstr = redisReplyReaderGetError(self->reader);
