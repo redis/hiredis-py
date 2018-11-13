@@ -152,6 +152,20 @@ class ReaderTest(TestCase):
     self.reader.feed(b"$5\r\nhello\r\n")
     self.assertRaises(LookupError, self.reply)
 
+  def test_should_decode_false_flag_prevents_decoding(self):
+    snowman = b"\xe2\x98\x83"
+    self.reader = hiredis.Reader(encoding="utf-8")
+    self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
+    self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
+    self.assertEquals(snowman, self.reader.gets(False))
+    self.assertEquals(snowman.decode("utf-8"), self.reply())
+
+  def test_should_decode_true_flag_decodes_as_normal(self):
+    snowman = b"\xe2\x98\x83"
+    self.reader = hiredis.Reader(encoding="utf-8")
+    self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
+    self.assertEquals(snowman.decode("utf-8"), self.reader.gets(True))
+
   def test_null_multi_bulk(self):
     self.reader.feed(b"*-1\r\n")
     self.assertEquals(None, self.reply())
