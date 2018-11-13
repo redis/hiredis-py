@@ -235,3 +235,11 @@ class ReaderTest(TestCase):
         self.reply()
 
     self.assertEquals(5, self.reader.len())
+
+  def test_reader_has_data(self):
+    self.assertEquals(False, self.reader.has_data())
+    data = b"+ok\r\n"
+    self.reader.feed(data)
+    self.assertEquals(True, self.reader.has_data())
+    self.reply()
+    self.assertEquals(False, self.reader.has_data())

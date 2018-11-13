@@ -10,6 +10,7 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self);
 static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg);
 static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self);
 static PyObject *Reader_len(hiredis_ReaderObject *self);
+static PyObject *Reader_has_data(hiredis_ReaderObject *self);
 
 static PyMethodDef hiredis_ReaderMethods[] = {
     {"feed", (PyCFunction)Reader_feed, METH_VARARGS, NULL },
@@ -17,6 +18,7 @@ static PyMethodDef hiredis_ReaderMethods[] = {
     {"setmaxbuf", (PyCFunction)Reader_setmaxbuf, METH_O, NULL },
     {"getmaxbuf", (PyCFunction)Reader_getmaxbuf, METH_NOARGS, NULL },
     {"len", (PyCFunction)Reader_len, METH_NOARGS, NULL },
+    {"has_data", (PyCFunction)Reader_has_data, METH_NOARGS, NULL },
     { NULL }  /* Sentinel */
 };
 
@@ -351,4 +353,10 @@ static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self) {
 
 static PyObject *Reader_len(hiredis_ReaderObject *self) {
     return PyLong_FromSize_t(self->reader->len);
+}
+
+static PyObject *Reader_has_data(hiredis_ReaderObject *self) {
+    if(self->reader->pos < self->reader->len)
+        Py_RETURN_TRUE;
+    Py_RETURN_FALSE;
 }
