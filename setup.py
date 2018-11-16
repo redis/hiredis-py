@@ -20,6 +20,7 @@ setup(
   version=version(),
   description="Python wrapper for hiredis",
   long_description=open('README.md', 'r').read(),
+  long_description_content_type='text/markdown',
   url="https://github.com/redis/hiredis-py",
   author="Jan-Erik Rediger, Pieter Noordhuis",
   author_email="janerik@fnordig.de, pcnoordhuis@gmail.com",
@@ -27,7 +28,6 @@ setup(
   license="BSD",
   packages=["hiredis"],
   ext_modules=[ext],
-
   python_requires=">=2.6, !=3.0.*, !=3.1.*",
   classifiers=[
     'Development Status :: 5 - Production/Stable',
