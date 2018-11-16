@@ -19,6 +19,7 @@ setup(
   name="hiredis",
   version=version(),
   description="Python wrapper for hiredis",
+  long_description=open('README.md', 'r').read(),
   url="https://github.com/redis/hiredis-py",
   author="Jan-Erik Rediger, Pieter Noordhuis",
   author_email="janerik@fnordig.de, pcnoordhuis@gmail.com",
