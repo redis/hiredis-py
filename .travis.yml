@@ -36,6 +36,7 @@ branches:
     - staging
     - trying
     - master
+    - /^v.*$/
 
 install:
   - if [[ $TRAVIS_PYTHON_VERSION == "3.2" ]]; then travis_retry pip install --upgrade "setuptools<30.0.0"; fi
