@@ -1,3 +1,15 @@
+### 0.3.0 (2018-11-16)
+
+* Upgrade hiredis to 0.13.3
+* Add optional "shouldDecode" argument to Reader.gets() (see #77)
+* Add a "has_data" method to Reader objects (see #78)
+* Fix non-utf8 reply parsing causing segmentation fault in Python 3 (see #73)
+* Rename `state` to `hiredis_py_module_state` to avoid conflicts (see #72)
+* Expose len method to retrieve the buffer length (see #61)
+* Fix crash when custom exception raise error (on init) (see #57)
+* incref before PyModule_AddObject which steals references (see #48)
+* Sort list of source files to allow reproducible building (see #47)
+
 ### 0.2.0 (2015-04-03)
 
 * Allow usage of setuptools
