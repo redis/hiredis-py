@@ -1,5 +1,6 @@
 include COPYING
 include MANIFEST.in
+include README.md
 include src/*.[ch]
 include vendor/hiredis/COPYING
 include vendor/hiredis/*.[ch]
