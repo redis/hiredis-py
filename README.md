@@ -14,7 +14,7 @@ hiredis-py is available on [PyPi](http://pypi.python.org/pypi/hiredis), and
 can be installed with:
 
 ```
-easy_install hiredis
+pip install hiredis
 ```
 
 ### Requirements
