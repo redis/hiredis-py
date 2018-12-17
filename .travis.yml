@@ -5,10 +5,7 @@ dist: trusty
 
 matrix:
   include:
-  - python: "2.6"
   - python: "2.7"
-  - python: "3.2"
-  - python: "3.3"
   - python: "3.4"
   - python: "3.5"
   - python: "3.6"
@@ -39,7 +36,6 @@ branches:
     - /^v.*$/
 
 install:
-  - if [[ $TRAVIS_PYTHON_VERSION == "3.2" ]]; then travis_retry pip install --upgrade "setuptools<30.0.0"; fi
   - |
     if [ -n "${HIREDIS_PY_BUILDWHEELS:-}" ]; then
       pip install cibuildwheel
