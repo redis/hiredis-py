@@ -221,9 +221,8 @@ class ReaderTest(TestCase):
     self.assertEquals(b"ok", self.reply())
 
   def test_feed_bytearray(self):
-    if sys.hexversion >= 0x02060000:
-      self.reader.feed(bytearray(b"+ok\r\n"))
-      self.assertEquals(b"ok", self.reply())
+    self.reader.feed(bytearray(b"+ok\r\n"))
+    self.assertEquals(b"ok", self.reply())
 
   def test_maxbuf(self):
     defaultmaxbuf = self.reader.getmaxbuf()

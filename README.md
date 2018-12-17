@@ -19,7 +19,7 @@ pip install hiredis
 
 ### Requirements
 
-hiredis-py requires **Python 2.6 or higher**.
+hiredis-py requires **Python 2.7 or 3.4+**.
 
 Make sure Python development headers are available when installing hiredis-py.
 On Ubuntu/Debian systems, install them with `apt-get install python-dev` for Python 2
