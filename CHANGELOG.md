@@ -2,6 +2,10 @@
 
 * Removed support for EOL Python 2.6, 3.2, and 3.3.
 
+### 0.3.1 (2018-12-24)
+
+* Include test files in sdist tarball (see #80)
+
 ### 0.3.0 (2018-11-16)
 
 * Upgrade hiredis to 0.13.3
