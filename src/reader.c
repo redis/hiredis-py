@@ -79,25 +79,17 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
     if (self->encoding == NULL || !self->shouldDecode) {
         obj = PyBytes_FromStringAndSize(str, len);
     } else {
-        obj = PyUnicode_Decode(str, len, self->encoding, NULL);
+        obj = PyUnicode_Decode(str, len, self->encoding, self->errors);
         if (obj == NULL) {
-            if (PyErr_ExceptionMatches(PyExc_ValueError)) {
-                /* Ignore encoding and simply return plain string. */
-                obj = PyBytes_FromStringAndSize(str, len);
-            } else {
-                assert(PyErr_ExceptionMatches(PyExc_LookupError));
+            /* Store error when this is the first. */
+            if (self->error.ptype == NULL)
+                PyErr_Fetch(&(self->error.ptype), &(self->error.pvalue),
+                        &(self->error.ptraceback));
 
-                /* Store error when this is the first. */
-                if (self->error.ptype == NULL)
-                    PyErr_Fetch(&(self->error.ptype), &(self->error.pvalue),
-                            &(self->error.ptraceback));
-
-                /* Return Py_None as placeholder to let the error bubble up and
-                 * be used when a full reply in Reader#gets(). */
-                obj = Py_None;
-                Py_INCREF(obj);
-            }
-
+            /* Return Py_None as placeholder to let the error bubble up and
+             * be used when a full reply in Reader#gets(). */
+            obj = Py_None;
+            Py_INCREF(obj);
             PyErr_Clear();
         }
     }
@@ -173,9 +165,9 @@ redisReplyObjectFunctions hiredis_ObjectFunctions = {
 };
 
 static void Reader_dealloc(hiredis_ReaderObject *self) {
+    // we don't need to free self->encoding as the buffer is managed by Python
+    // https://docs.python.org/3/c-api/arg.html#strings-and-buffers
     redisReplyReaderFree(self->reader);
-    if (self->encoding)
-        free(self->encoding);
     Py_XDECREF(self->protocolErrorClass);
     Py_XDECREF(self->replyErrorClass);
 
@@ -198,13 +190,14 @@ static int _Reader_set_exception(PyObject **target, PyObject *value) {
 }
 
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
-    static char *kwlist[] = { "protocolError", "replyError", "encoding", NULL };
+    static char *kwlist[] = { "protocolError", "replyError", "encoding", "errors", NULL };
     PyObject *protocolErrorClass = NULL;
     PyObject *replyErrorClass = NULL;
-    PyObject *encodingObj = NULL;
+    char *encoding = NULL;
+    char *errors = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOO", kwlist,
-        &protocolErrorClass, &replyErrorClass, &encodingObj))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOss", kwlist,
+        &protocolErrorClass, &replyErrorClass, &encoding, &errors))
             return -1;
 
     if (protocolErrorClass)
@@ -215,25 +208,19 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
         if (!_Reader_set_exception(&self->replyErrorClass, replyErrorClass))
             return -1;
 
-    if (encodingObj) {
-        PyObject *encbytes;
-        char *encstr;
-        int enclen;
+    self->encoding = encoding;
+    if(errors) {
+        if (strcmp(errors, "strict") != 0 &&
+            strcmp(errors, "replace") != 0 &&
+            strcmp(errors, "ignore") != 0 &&
+            strcmp(errors, "backslashreplace") != 0) {
 
-        if (PyUnicode_Check(encodingObj))
-            encbytes = PyUnicode_AsASCIIString(encodingObj);
-        else
-            encbytes = PyObject_Bytes(encodingObj);
-
-        if (encbytes == NULL)
+            PyErr_SetString(PyExc_LookupError,
+                            "if specified, errors must be one of "
+                            "{'strict', 'replace', 'ignore', 'backslashreplace'}");
             return -1;
-
-        enclen = PyBytes_Size(encbytes);
-        encstr = PyBytes_AsString(encbytes);
-        self->encoding = (char*)malloc(enclen+1);
-        memcpy(self->encoding, encstr, enclen);
-        self->encoding[enclen] = '\0';
-        Py_DECREF(encbytes);
+        }
+        self->errors = errors;
     }
 
     return 0;
@@ -248,6 +235,7 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         self->reader->privdata = self;
 
         self->encoding = NULL;
+        self->errors = "strict";  // default to "strict" to mimic Python
         self->shouldDecode = 1;
         self->protocolErrorClass = HIREDIS_STATE->HiErr_ProtocolError;
         self->replyErrorClass = HIREDIS_STATE->HiErr_ReplyError;

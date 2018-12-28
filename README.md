@@ -68,16 +68,23 @@ To do so, specify the encoding you want to use for decoding replies when
 initializing it:
 
 ```python
->>> reader = hiredis.Reader(encoding="utf-8")
+>>> reader = hiredis.Reader(encoding="utf-8", errors="strict")
 >>> reader.feed("$3\r\n\xe2\x98\x83\r\n")
 >>> reader.gets()
 u'☃'
 ```
 
-When bulk data in a reply could not be properly decoded using the specified
-encoding, it will be returned as a plain string. When the encoding cannot be
-found, a `LookupError` will be raised after calling `gets` for the first reply
-with bulk data (identical to what Python's `unicode` method would do).
+Decoding of bulk data will be attempted using the specified encoding and
+error handler. If the error handler is `'strict'` (the default), a
+`UnicodeDecodeError` is raised when data cannot be dedcoded. This is identical
+to Python's default behavior. Other valid values to `errors` include
+`'replace'`, `'ignore'`, and `'backslashreplace'`. More information on the
+behavior of these error handlers can be found
+[here](https://docs.python.org/3/howto/unicode.html#the-string-type).
+
+
+When the specified encoding cannot be found, a `LookupError` will be raised
+when calling `gets` for the first reply with bulk data.
 
 #### Error handling
 

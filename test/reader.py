@@ -141,16 +141,26 @@ class ReaderTest(TestCase):
     self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
     self.assertEquals(snowman.decode("utf-8"), self.reply())
 
-  def test_bulk_string_with_other_encoding(self):
-    snowman = b"\xe2\x98\x83"
-    self.reader = hiredis.Reader(encoding="utf-32")
-    self.reader.feed(b"$3\r\n" + snowman + b"\r\n")
-    self.assertEquals(snowman, self.reply())
-
   def test_bulk_string_with_invalid_encoding(self):
     self.reader = hiredis.Reader(encoding="unknown")
     self.reader.feed(b"$5\r\nhello\r\n")
     self.assertRaises(LookupError, self.reply)
+
+  def test_decode_errors_defaults_to_strict(self):
+    self.reader = hiredis.Reader(encoding="utf-8")
+    self.reader.feed(b"+\x80\r\n")
+    self.assertRaises(UnicodeDecodeError, self.reader.gets)
+
+  def test_decode_error_with_ignore_errors(self):
+    self.reader = hiredis.Reader(encoding="utf-8", errors="ignore")
+    self.reader.feed(b"+\x80value\r\n")
+    self.assertEquals("value", self.reader.gets())
+
+  def test_invalid_encoding_error_handler(self):
+    self.assertRaises(LookupError, hiredis.Reader, errors='unknown')
+
+  def test_reader_with_invalid_error_handler(self):
+    self.assertRaises(LookupError, hiredis.Reader, encoding="utf-8", errors='foo')
 
   def test_should_decode_false_flag_prevents_decoding(self):
     snowman = b"\xe2\x98\x83"
