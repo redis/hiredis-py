@@ -10,8 +10,8 @@ It primarily speeds up parsing of multi bulk replies.
 
 ## Install
 
-hiredis-py is available on [PyPi](http://pypi.python.org/pypi/hiredis), and
-can be installed with:
+hiredis-py is available on [PyPI](https://pypi.org/project/hiredis/), and can
+be installed with:
 
 ```
 pip install hiredis
