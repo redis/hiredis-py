@@ -1,5 +1,6 @@
-### UNRELEASED
+### 1.0.0 (2019-01-20)
 
+* **(BREAKING CHANGE)** Add ability to control how unicode decoding errors are handled (see #82)
 * Removed support for EOL Python 2.6, 3.2, and 3.3.
 
 ### 0.3.1 (2018-12-24)
