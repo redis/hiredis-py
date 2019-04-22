@@ -209,17 +209,16 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
             return -1;
 
     self->encoding = encoding;
-    if(errors) {
-        if (strcmp(errors, "strict") != 0 &&
-            strcmp(errors, "replace") != 0 &&
-            strcmp(errors, "ignore") != 0 &&
-            strcmp(errors, "backslashreplace") != 0) {
-
-            PyErr_SetString(PyExc_LookupError,
-                            "if specified, errors must be one of "
-                            "{'strict', 'replace', 'ignore', 'backslashreplace'}");
+    if (errors) {   // validate that the error handler exists, raises LookupError if not
+        PyObject *codecs, *result;
+        codecs = PyImport_ImportModule("codecs");
+        if (!codecs)
             return -1;
-        }
+        result = PyObject_CallMethod(codecs, "lookup_error", "s", errors);
+        Py_DECREF(codecs);
+        if (!result)
+            return -1;
+        Py_DECREF(result);
         self->errors = errors;
     }
 

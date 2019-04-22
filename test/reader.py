@@ -156,6 +156,12 @@ class ReaderTest(TestCase):
     self.reader.feed(b"+\x80value\r\n")
     self.assertEquals("value", self.reader.gets())
 
+  if IS_PY3K:
+    def test_decode_error_with_surrogateescape_errors(self):
+      self.reader = hiredis.Reader(encoding="utf-8", errors="surrogateescape")
+      self.reader.feed(b"+\x80value\r\n")
+      self.assertEquals("\udc80value", self.reader.gets())
+
   def test_invalid_encoding_error_handler(self):
     self.assertRaises(LookupError, hiredis.Reader, errors='unknown')
 
