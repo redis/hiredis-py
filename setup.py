@@ -4,7 +4,7 @@ try:
   from setuptools import setup, Extension
 except ImportError:
   from distutils.core import setup, Extension
-import sys, imp, os, glob
+import sys, imp, os, glob, io
 
 def version():
   module = imp.load_source("hiredis.version", "hiredis/version.py")
@@ -19,7 +19,7 @@ setup(
   name="hiredis",
   version=version(),
   description="Python wrapper for hiredis",
-  long_description=open('README.md', 'r').read(),
+  long_description=io.open('README.md', 'rt', encoding='utf-8').read(),
   long_description_content_type='text/markdown',
   url="https://github.com/redis/hiredis-py",
   author="Jan-Erik Rediger, Pieter Noordhuis",
