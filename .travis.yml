@@ -35,6 +35,7 @@ branches:
     - trying
     - master
     - /^v.*$/
+    - py38
 
 install:
   - |
