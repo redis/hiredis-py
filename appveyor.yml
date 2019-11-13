@@ -52,6 +52,14 @@ environment:
       PYTHON_VERSION: "3.7.0"
       PYTHON_ARCH: "64"
 
+    - PYTHON: "C:\\Python38"
+      PYTHON_VERSION: "3.8.0"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python38-x64"
+      PYTHON_VERSION: "3.8.0"
+      PYTHON_ARCH: "64"
+
     # build wheels
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.6"
@@ -60,6 +68,15 @@ environment:
 
 
 install:
+  - ps: |
+      Set-PSDebug -Trace 1
+      if ($Env:PYTHON_VERSION.StartsWith("3.8")) {
+        if ($Env:PYTHON_ARCH -eq "64") {
+          iex "choco install python3 --version=3.8 --no-progress --params /InstallDir:$Env:PYTHON"
+        } else {
+          iex "choco install python3 --version=3.8 --no-progress --params /InstallDir:$Env:PYTHON --x86"
+        }
+      }
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   - "python --version"
   - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
