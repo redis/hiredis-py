@@ -85,7 +85,7 @@ install:
 build: off
 
 test_script:
-  - "%CMD_IN_ENV% python setup.py build"
+  - "%CMD_IN_ENV% python setup.py build_ext --inplace"
   - "%CMD_IN_ENV% python test.py"
   - ps: |
       if (Test-Path env:HIREDIS_PY_BUILDWHEELS) {
