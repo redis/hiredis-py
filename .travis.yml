@@ -42,7 +42,7 @@ install:
     if [ -n "${HIREDIS_PY_BUILDWHEELS:-}" ]; then
       pip install cibuildwheel
     else
-      python setup.py build
+      python setup.py build_ext --inplace
     fi
 
 script:
