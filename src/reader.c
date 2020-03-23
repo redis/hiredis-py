@@ -11,6 +11,7 @@ static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg);
 static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self);
 static PyObject *Reader_len(hiredis_ReaderObject *self);
 static PyObject *Reader_has_data(hiredis_ReaderObject *self);
+static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds);
 
 static PyMethodDef hiredis_ReaderMethods[] = {
     {"feed", (PyCFunction)Reader_feed, METH_VARARGS, NULL },
@@ -19,6 +20,7 @@ static PyMethodDef hiredis_ReaderMethods[] = {
     {"getmaxbuf", (PyCFunction)Reader_getmaxbuf, METH_NOARGS, NULL },
     {"len", (PyCFunction)Reader_len, METH_NOARGS, NULL },
     {"has_data", (PyCFunction)Reader_has_data, METH_NOARGS, NULL },
+    {"set_encoding", (PyCFunction)Reader_set_encoding, METH_VARARGS | METH_KEYWORDS, NULL },
     { NULL }  /* Sentinel */
 };
 
@@ -189,6 +191,40 @@ static int _Reader_set_exception(PyObject **target, PyObject *value) {
     return 1;
 }
 
+static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char *errors) {
+    PyObject *codecs, *result;
+
+    if (encoding) {  // validate that the encoding exists, raises LookupError if not
+        codecs = PyImport_ImportModule("codecs");
+        if (!codecs)
+            return -1;
+        result = PyObject_CallMethod(codecs, "lookup", "s", encoding);
+        Py_DECREF(codecs);
+        if (!result)
+            return -1;
+        Py_DECREF(result);
+        self->encoding = encoding;
+    } else {
+        self->encoding = NULL;
+    }
+
+    if (errors) {   // validate that the error handler exists, raises LookupError if not
+        codecs = PyImport_ImportModule("codecs");
+        if (!codecs)
+            return -1;
+        result = PyObject_CallMethod(codecs, "lookup_error", "s", errors);
+        Py_DECREF(codecs);
+        if (!result)
+            return -1;
+        Py_DECREF(result);
+        self->errors = errors;
+    } else {
+        self->errors = "strict";
+    }
+
+    return 0;
+}
+
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
     static char *kwlist[] = { "protocolError", "replyError", "encoding", "errors", NULL };
     PyObject *protocolErrorClass = NULL;
@@ -196,7 +232,7 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
     char *encoding = NULL;
     char *errors = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOss", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOzz", kwlist,
         &protocolErrorClass, &replyErrorClass, &encoding, &errors))
             return -1;
 
@@ -208,21 +244,7 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
         if (!_Reader_set_exception(&self->replyErrorClass, replyErrorClass))
             return -1;
 
-    self->encoding = encoding;
-    if (errors) {   // validate that the error handler exists, raises LookupError if not
-        PyObject *codecs, *result;
-        codecs = PyImport_ImportModule("codecs");
-        if (!codecs)
-            return -1;
-        result = PyObject_CallMethod(codecs, "lookup_error", "s", errors);
-        Py_DECREF(codecs);
-        if (!result)
-            return -1;
-        Py_DECREF(result);
-        self->errors = errors;
-    }
-
-    return 0;
+    return _Reader_set_encoding(self, encoding, errors);
 }
 
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -352,4 +374,19 @@ static PyObject *Reader_has_data(hiredis_ReaderObject *self) {
     if(self->reader->pos < self->reader->len)
         Py_RETURN_TRUE;
     Py_RETURN_FALSE;
+}
+
+static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+    static char *kwlist[] = { "encoding", "errors", NULL };
+    char *encoding = NULL;
+    char *errors = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|zz", kwlist, &encoding, &errors))
+        return NULL;
+
+    if(_Reader_set_encoding(self, encoding, errors) == -1)
+        return NULL;
+
+    return Py_None;
+
 }
