@@ -387,6 +387,6 @@ static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args,
     if(_Reader_set_encoding(self, encoding, errors) == -1)
         return NULL;
 
-    return Py_None;
+    Py_RETURN_NONE;
 
 }
