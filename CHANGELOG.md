@@ -1,3 +1,7 @@
+### 1.1.0 (2020-07-12)
+
+* Allow "encoding" and "errors" attributes to be updated at runtime (see #96)
+
 ### 1.0.1 (2019-11-13)
 
 * Permit all allowed values of codec errors (see #86)
