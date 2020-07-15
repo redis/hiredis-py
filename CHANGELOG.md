@@ -1,4 +1,4 @@
-### 1.1.0 (2020-07-12)
+### 1.1.0 (2020-07-15)
 
 * Allow "encoding" and "errors" attributes to be updated at runtime (see #96)
 
