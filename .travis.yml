@@ -52,9 +52,9 @@ branches:
 install:
   - |
     if [ -n "${HIREDIS_PY_BUILDWHEELS:-}" ]; then
-      pip install cibuildwheel
+      pip3 install cibuildwheel
     else
-      python setup.py build_ext --inplace
+      python3 setup.py build_ext --inplace
     fi
 
 script:
@@ -62,7 +62,7 @@ script:
     if [ -n "${HIREDIS_PY_BUILDWHEELS:-}" ]; then
       cibuildwheel --output-dir dist
     else
-      python test.py
+      python3 test.py
     fi
 
 before_deploy: ls dist/
