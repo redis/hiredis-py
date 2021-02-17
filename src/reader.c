@@ -103,11 +103,7 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
 static void *createError(PyObject *errorCallable, char *errstr, size_t len) {
     PyObject *obj, *errmsg;
 
-    #if IS_PY3K
     errmsg = PyUnicode_DecodeUTF8(errstr, len, "replace");
-    #else
-    errmsg = Py_BuildValue("s#", errstr, len);
-    #endif
     assert(errmsg != NULL); /* TODO: properly handle OOM etc */
 
     obj = PyObject_CallFunctionObjArgs(errorCallable, errmsg, NULL);

@@ -19,11 +19,10 @@ pip install hiredis
 
 ### Requirements
 
-hiredis-py requires **Python 2.7 or 3.4+**.
+hiredis-py requires **Python 3.6+**.
 
 Make sure Python development headers are available when installing hiredis-py.
-On Ubuntu/Debian systems, install them with `apt-get install python-dev` for Python 2
-or `apt-get install python3-dev` for Python 3.
+On Ubuntu/Debian systems, install them with `apt-get install python3-dev`.
 
 ## Usage
 
@@ -45,7 +44,7 @@ Example:
 >>> reader = hiredis.Reader()
 >>> reader.feed("$5\r\nhello\r\n")
 >>> reader.gets()
-'hello'
+b'hello'
 ```
 
 When the buffer does not contain a full reply, `gets` returns `False`. This
@@ -58,7 +57,7 @@ means extra data is needed and `feed` should be called again before calling
 False
 >>> reader.feed("$5\r\nworld\r\n")
 >>> reader.gets()
-['hello', 'world']
+[b'hello', b'world']
 ```
 
 #### Unicode
@@ -69,9 +68,9 @@ initializing it:
 
 ```python
 >>> reader = hiredis.Reader(encoding="utf-8", errors="strict")
->>> reader.feed("$3\r\n\xe2\x98\x83\r\n")
+>>> reader.feed(b"$3\r\n\xe2\x98\x83\r\n")
 >>> reader.gets()
-u'☃'
+'☃'
 ```
 
 Decoding of bulk data will be attempted using the specified encoding and
