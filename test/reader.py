@@ -1,9 +1,7 @@
 # coding=utf-8
 from unittest import *
 import hiredis
-import sys
 
-IS_PY3K = sys.version_info[0] >= 3
 
 class ReaderTest(TestCase):
   def setUp(self):
@@ -75,10 +73,7 @@ class ReaderTest(TestCase):
     self.reader.feed(b"-error \xd1\r\n")
     error = self.reply()
 
-    if IS_PY3K:
-      expected = "error \ufffd"
-    else:
-      expected = b"error \xd1"
+    expected = "error \ufffd"
 
     self.assertEquals(hiredis.ReplyError, type(error))
     self.assertEquals((expected,), error.args)
@@ -104,10 +99,7 @@ class ReaderTest(TestCase):
   def test_errors_with_non_utf8_chars_in_nested_multi_bulk(self):
     self.reader.feed(b"*2\r\n-err\xd1\r\n-err1\r\n")
 
-    if IS_PY3K:
-      expected = "err\ufffd"
-    else:
-      expected = b"err\xd1"
+    expected = "err\ufffd"
 
     for r, error in zip((expected, "err1"), self.reply()):
       self.assertEquals(hiredis.ReplyError, type(error))
@@ -151,11 +143,10 @@ class ReaderTest(TestCase):
     self.reader.feed(b"+\x80value\r\n")
     self.assertEquals("value", self.reader.gets())
 
-  if IS_PY3K:
-    def test_decode_error_with_surrogateescape_errors(self):
-      self.reader = hiredis.Reader(encoding="utf-8", errors="surrogateescape")
-      self.reader.feed(b"+\x80value\r\n")
-      self.assertEquals("\udc80value", self.reader.gets())
+  def test_decode_error_with_surrogateescape_errors(self):
+    self.reader = hiredis.Reader(encoding="utf-8", errors="surrogateescape")
+    self.reader.feed(b"+\x80value\r\n")
+    self.assertEquals("\udc80value", self.reader.gets())
 
   def test_invalid_encoding(self):
     self.assertRaises(LookupError, hiredis.Reader, encoding="unknown")
