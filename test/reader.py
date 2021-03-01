@@ -110,6 +110,42 @@ class ReaderTest(TestCase):
     self.reader.feed((":%d\r\n" % value).encode("ascii"))
     self.assertEquals(value, self.reply())
 
+  def test_float(self):
+    value = -99.99
+    self.reader.feed(b",%f\r\n" % value)
+    self.assertEqual(value, self.reply())
+
+  def test_boolean_true(self):
+    self.reader.feed(b"#t\r\n")
+    self.assertTrue(self.reply())
+
+  def test_boolean_false(self):
+    self.reader.feed(b"#f\r\n")
+    self.assertFalse(False, self.reply())
+
+  def test_none(self):
+    self.reader.feed(b"_\r\n")
+    self.assertIsNone(self.reply())
+
+  def test_set(self):
+    self.reader.feed(b"~3\r\n+tangerine\r\n_\r\n,10.5\r\n")
+    self.assertEqual({b"tangerine", None, 10.5}, self.reply())
+
+  def test_dict(self):
+    self.reader.feed(b"%2\r\n+radius\r\n,4.5\r\n+diameter\r\n:9\r\n")
+    self.assertEqual({b"radius": 4.5, b"diameter": 9}, self.reply())
+
+  def test_vector(self):
+    self.reader.feed(b">4\r\n+pubsub\r\n+message\r\n+channel\r\n+message\r\n")
+    self.assertEqual(
+      [b"pubsub", b"message", b"channel", b"message"], self.reply()
+    )
+
+  def test_verbatim_string(self):
+    value = b"text"
+    self.reader.feed(b"=8\r\ntxt:%s\r\n" % value)
+    self.assertEqual(value, self.reply())
+
   def test_status_string(self):
     self.reader.feed(b"+ok\r\n")
     self.assertEquals(b"ok", self.reply())
