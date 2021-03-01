@@ -69,8 +69,26 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
     PyObject *parent;
     if (task && task->parent) {
         parent = (PyObject*)task->parent->obj;
-        assert(PyList_CheckExact(parent));
-        PyList_SET_ITEM(parent, task->idx, obj);
+        switch (task->parent->type) {
+            case REDIS_REPLY_MAP:
+                if (task->idx % 2 == 0) {
+                    /* Set a temporary item to save the object as a key. */
+                    PyDict_SetItem(parent, obj, Py_None);
+                } else {
+                    /* Pop the temporary item and set proper key and value. */
+                    PyObject *last_item = PyObject_CallMethod(parent, "popitem", NULL);
+                    PyObject *last_key = PyTuple_GetItem(last_item, 0);
+                    PyDict_SetItem(parent, last_key, obj);
+                }
+                break;
+            case REDIS_REPLY_SET:
+                assert(PyAnySet_CheckExact(parent));
+                PySet_Add(parent, obj);
+                break;
+            default:
+                assert(PyList_CheckExact(parent));
+                PyList_SET_ITEM(parent, task->idx, obj);
+        }
     }
     return obj;
 }
@@ -127,14 +145,28 @@ static void *createStringObject(const redisReadTask *task, char *str, size_t len
             Py_INCREF(obj);
         }
     } else {
+        if (task->type == REDIS_REPLY_VERB) {
+            /* Skip 4 bytes of verbatim type header. */
+            memmove(str, str+4, len);
+            len -= 4;
+        }
         obj = createDecodedString(self, str, len);
     }
     return tryParentize(task, obj);
 }
 
-static void *createArrayObject(const redisReadTask *task, int elements) {
+static void *createArrayObject(const redisReadTask *task, size_t elements) {
     PyObject *obj;
-    obj = PyList_New(elements);
+    switch (task->type) {
+        case REDIS_REPLY_MAP:
+            obj = PyDict_New();
+            break;
+        case REDIS_REPLY_SET:
+            obj = PySet_New(NULL);
+            break;
+        default:
+            obj = PyList_New(elements);
+    }
     return tryParentize(task, obj);
 }
 
@@ -144,9 +176,21 @@ static void *createIntegerObject(const redisReadTask *task, long long value) {
     return tryParentize(task, obj);
 }
 
+static void *createDoubleObject(const redisReadTask *task, double value, char *str, size_t le) {
+    PyObject *obj;
+    obj = PyFloat_FromDouble(value);
+    return tryParentize(task, obj);
+}
+
 static void *createNilObject(const redisReadTask *task) {
     PyObject *obj = Py_None;
     Py_INCREF(obj);
+    return tryParentize(task, obj);
+}
+
+static void *createBoolObject(const redisReadTask *task, int bval) {
+    PyObject *obj;
+    obj = PyBool_FromLong((long)bval);
     return tryParentize(task, obj);
 }
 
@@ -156,16 +200,18 @@ static void freeObject(void *obj) {
 
 redisReplyObjectFunctions hiredis_ObjectFunctions = {
     createStringObject,  // void *(*createString)(const redisReadTask*, char*, size_t);
-    createArrayObject,   // void *(*createArray)(const redisReadTask*, int);
+    createArrayObject,   // void *(*createArray)(const redisReadTask*, size_t);
     createIntegerObject, // void *(*createInteger)(const redisReadTask*, long long);
+    createDoubleObject,  // void *(*createDoubleObject)(const redisReadTask*, double, char*, size_t);
     createNilObject,     // void *(*createNil)(const redisReadTask*);
+    createBoolObject,    // void *(*createBoolObject)(const redisReadTask*, int);
     freeObject           // void (*freeObject)(void*);
 };
 
 static void Reader_dealloc(hiredis_ReaderObject *self) {
     // we don't need to free self->encoding as the buffer is managed by Python
     // https://docs.python.org/3/c-api/arg.html#strings-and-buffers
-    redisReplyReaderFree(self->reader);
+    redisReaderFree(self->reader);
     Py_XDECREF(self->protocolErrorClass);
     Py_XDECREF(self->replyErrorClass);
 
@@ -289,7 +335,7 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
       goto error;
     }
 
-    redisReplyReaderFeed(self->reader, (char *)buf.buf + off, len);
+    redisReaderFeed(self->reader, (char *)buf.buf + off, len);
     PyBuffer_Release(&buf);
     Py_RETURN_NONE;
 
@@ -308,8 +354,8 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
         return NULL;
     }
 
-    if (redisReplyReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
-        errstr = redisReplyReaderGetError(self->reader);
+    if (redisReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
+        errstr = redisReaderGetError(self->reader);
         /* protocolErrorClass might be a callable. call it, then use it's type */
         err = createError(self->protocolErrorClass, errstr, strlen(errstr));
         if (err != NULL) {
