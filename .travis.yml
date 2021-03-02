@@ -1,6 +1,6 @@
 sudo: false
 language: python
-dist: trusty
+dist: focal
 
 
 matrix:
@@ -9,37 +9,39 @@ matrix:
   - python: "3.6"
     arch: arm64
   - python: "3.7"
-    dist: xenial
   - python: "3.7"
-    dist: xenial
     arch: arm64
   - python: "3.8"
-    dist: xenial
   - python: "3.8"
-    dist: xenial
+    arch: arm64
+  - python: "3.9"
+  - python: "3.9"
+    arch: arm64
+  - python: "nightly"
+  - python: "nightly"
     arch: arm64
   # linux wheels
-  - dist: trusty
-    sudo: required
+  - sudo: required
     services:
       - docker
     env: HIREDIS_PY_BUILDWHEELS=1
   # linux aarch64 (arm64) wheels
-  - dist: trusty
-    arch: arm64
+  - arch: arm64
     sudo: required
     services:
       - docker
     env: HIREDIS_PY_BUILDWHEELS=1
   # osx wheels
   - os: osx
-    osx_image: xcode9.4
+    osx_image: xcode12.2
     language: generic
     env: HIREDIS_PY_BUILDWHEELS=1
-    python: "3.6"
+    python: "3.9"
     before_install:
       - SSL_CERT_FILE=$(brew --prefix)/etc/openssl/cert.pem
       - sudo pip install -U pip setuptools twine
+  allow_failures:
+  - python: "nightly"
 
 branches:
   only:
