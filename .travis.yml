@@ -1,6 +1,6 @@
 sudo: false
 language: python
-dist: trusty
+dist: xenial
 
 
 matrix:
@@ -9,24 +9,21 @@ matrix:
   - python: "3.6"
     arch: arm64
   - python: "3.7"
-    dist: xenial
   - python: "3.7"
-    dist: xenial
     arch: arm64
   - python: "3.8"
-    dist: xenial
   - python: "3.8"
-    dist: xenial
+    arch: arm64
+  - python: "3.9"
+  - python: "3.9"
     arch: arm64
   # linux wheels
-  - dist: trusty
-    sudo: required
+  - sudo: required
     services:
       - docker
     env: HIREDIS_PY_BUILDWHEELS=1
   # linux aarch64 (arm64) wheels
-  - dist: trusty
-    arch: arm64
+  - arch: arm64
     sudo: required
     services:
       - docker
