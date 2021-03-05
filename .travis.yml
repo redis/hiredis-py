@@ -65,7 +65,6 @@ script:
 before_deploy:
   - ls dist/
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      brew upgrade python;
       python3 -m venv ~/venv;
       source ~/venv/bin/activate;
     fi
