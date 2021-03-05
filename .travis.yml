@@ -62,7 +62,13 @@ script:
       python3 test.py
     fi
 
-before_deploy: ls dist/
+before_deploy:
+  - ls dist/
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      brew upgrade python;
+      python3 -m venv ~/venv;
+      source ~/venv/bin/activate;
+    fi
 
 deploy:
   # deploy master non-tags to Test PyPI
