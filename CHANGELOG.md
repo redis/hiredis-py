@@ -1,3 +1,10 @@
+### 2.0.0 (TBD)
+
+* Bump hiredis from 0.13.3 to 1.0.0 and consequently add support for RESP3 (see #104)
+* Add type hints (see #106)
+* Build aarch64 (arm64) wheels (see #98)
+* Drop support for EOL Python versions 2.7, 3.4, and 3.5 (see #103)
+
 ### 1.1.0 (2020-07-15)
 
 * Allow "encoding" and "errors" attributes to be updated at runtime (see #96)
