@@ -27,7 +27,7 @@ setup(
   keywords=["Redis"],
   license="BSD",
   packages=["hiredis"],
-  package_data={"hiredis": ["py.typed"]},
+  package_data={"hiredis": ["hiredis.pyi", "py.typed"]},
   ext_modules=[ext],
   python_requires=">=3.6",
   classifiers=[
