@@ -1,4 +1,4 @@
-### 2.0.0 (TBD)
+### 2.0.0 (2021-03-28)
 
 * Bump hiredis from 0.13.3 to 1.0.0 and consequently add support for RESP3 (see #104)
 * Add type hints (see #106)
