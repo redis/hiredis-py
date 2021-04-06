@@ -13,6 +13,7 @@ def version():
 ext = Extension("hiredis.hiredis",
   sources=sorted(glob.glob("src/*.c") +
                  ["vendor/hiredis/%s.c" % src for src in ("alloc", "read", "sds")]),
+  extra_compile_args=["-std=c99"],
   include_dirs=["vendor"])
 
 setup(
