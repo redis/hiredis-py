@@ -4,10 +4,11 @@ try:
   from setuptools import setup, Extension
 except ImportError:
   from distutils.core import setup, Extension
-import sys, imp, os, glob, io
+import sys, importlib, os, glob, io
 
 def version():
-  module = imp.load_source("hiredis.version", "hiredis/version.py")
+  loader = importlib.machinery.SourceFileLoader("hiredis.version", "hiredis/version.py")
+  module = loader.load_module()
   return module.__version__
 
 ext = Extension("hiredis.hiredis",
