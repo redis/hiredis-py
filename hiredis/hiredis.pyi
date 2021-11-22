@@ -11,6 +11,7 @@ class Reader:
         replyError: Callable[[str], Exception] = ...,
         encoding: Optional[str] = ...,
         errors: Optional[str] = ...,
+        notEnoughData: Any = ...,
     ) -> None: ...
     def feed(
         self, __buf: Union[str, bytes], __off: int = ..., __len: int = ...

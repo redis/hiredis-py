@@ -11,6 +11,7 @@ typedef struct {
     int shouldDecode;
     PyObject *protocolErrorClass;
     PyObject *replyErrorClass;
+    PyObject *notEnoughDataObject;
 
     /* Stores error object in between incomplete calls to #gets, in order to
      * only set the error once a full reply has been read. Otherwise, the

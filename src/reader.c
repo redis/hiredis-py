@@ -214,6 +214,7 @@ static void Reader_dealloc(hiredis_ReaderObject *self) {
     redisReaderFree(self->reader);
     Py_XDECREF(self->protocolErrorClass);
     Py_XDECREF(self->replyErrorClass);
+    Py_XDECREF(self->notEnoughDataObject);
 
     ((PyObject *)self)->ob_type->tp_free((PyObject*)self);
 }
@@ -268,14 +269,15 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
 }
 
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
-    static char *kwlist[] = { "protocolError", "replyError", "encoding", "errors", NULL };
+    static char *kwlist[] = { "protocolError", "replyError", "encoding", "errors", "notEnoughData", NULL };
     PyObject *protocolErrorClass = NULL;
     PyObject *replyErrorClass = NULL;
+    PyObject *notEnoughData = NULL;
     char *encoding = NULL;
     char *errors = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOzz", kwlist,
-        &protocolErrorClass, &replyErrorClass, &encoding, &errors))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOzzO", kwlist,
+        &protocolErrorClass, &replyErrorClass, &encoding, &errors, &notEnoughData))
             return -1;
 
     if (protocolErrorClass)
@@ -285,6 +287,9 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
     if (replyErrorClass)
         if (!_Reader_set_exception(&self->replyErrorClass, replyErrorClass))
             return -1;
+
+    if (notEnoughData)
+        self->notEnoughDataObject = notEnoughData;
 
     return _Reader_set_encoding(self, encoding, errors);
 }
@@ -299,11 +304,13 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 
         self->encoding = NULL;
         self->errors = "strict";  // default to "strict" to mimic Python
+        self->notEnoughDataObject = Py_False;
         self->shouldDecode = 1;
         self->protocolErrorClass = HIREDIS_STATE->HiErr_ProtocolError;
         self->replyErrorClass = HIREDIS_STATE->HiErr_ReplyError;
         Py_INCREF(self->protocolErrorClass);
         Py_INCREF(self->replyErrorClass);
+        Py_INCREF(self->notEnoughDataObject);
 
         self->error.ptype = NULL;
         self->error.pvalue = NULL;
@@ -368,7 +375,7 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
     }
 
     if (obj == NULL) {
-        Py_RETURN_FALSE;
+        return self->notEnoughDataObject;
     } else {
         /* Restore error when there is one. */
         if (self->error.ptype != NULL) {
