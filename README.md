@@ -47,9 +47,12 @@ Example:
 b'hello'
 ```
 
-When the buffer does not contain a full reply, `gets` returns `False`. This
-means extra data is needed and `feed` should be called again before calling
-`gets` again:
+When the buffer does not contain a full reply, `gets` returns `False`.
+This means extra data is needed and `feed` should be called again before calling
+`gets` again. Alternatively you could provide custom sentinel object via parameter,
+which is useful for RESP3 protocol where native boolean types are supported:
+
+Example:
 
 ```python
 >>> reader.feed("*2\r\n$5\r\nhello\r\n")
@@ -58,6 +61,9 @@ False
 >>> reader.feed("$5\r\nworld\r\n")
 >>> reader.gets()
 [b'hello', b'world']
+>>> reader = hiredis.Reader(notEnoughData=Ellipsis)
+>>> reader.gets()
+Ellipsis
 ```
 
 #### Unicode

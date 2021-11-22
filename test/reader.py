@@ -314,3 +314,7 @@ class ReaderTest(TestCase):
     self.assertEquals(True, self.reader.has_data())
     self.reply()
     self.assertEquals(False, self.reader.has_data())
+
+  def test_custom_not_enough_data(self):
+    self.reader = hiredis.Reader(notEnoughData=Ellipsis)
+    assert self.reader.gets() is Ellipsis
