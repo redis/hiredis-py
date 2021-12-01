@@ -42,6 +42,16 @@ environment:
       PYTHON_ARCH: "64"
       APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
+    - PYTHON: "C:\\Python310"
+      PYTHON_VERSION: "3.10.0"
+      PYTHON_ARCH: "32"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+
+    - PYTHON: "C:\\Python310-x64"
+      PYTHON_VERSION: "3.10.0"
+      PYTHON_ARCH: "64"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+
     # build wheels
     - PYTHON: "C:\\Python38-x64"
       PYTHON_VERSION: "3.8.0"
