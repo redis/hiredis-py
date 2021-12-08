@@ -1,0 +1,73 @@
+name: Build and upload to PyPI
+
+on: [push]
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2019, macos-10.15]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Set test tag
+        if: ${{ !startsWith(github.event.ref, 'refs/tags/v') }}
+        run: git tag -f v0.0.0-dev0
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.0
+        env:
+          CIBW_SKIP: '*musllinux*'
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Set test tag
+        if: ${{ !startsWith(github.event.ref, 'refs/tags/v') }}
+        run: git tag -f v0.0.0-dev0
+
+      - name: Build sdist
+        run: pipx run build --sdist
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: dist/*.tar.gz
+
+  upload_pypi:
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: artifact
+          path: dist
+
+      # upload to Test PyPI on regular commits
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        if: ${{ !startsWith(github.event.ref, 'refs/tags/v') }}
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+          skip_existing: true
+
+      # upload to PyPI on every tag starting with 'v'
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        if: ${{ startsWith(github.event.ref, 'refs/tags/v') }}
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

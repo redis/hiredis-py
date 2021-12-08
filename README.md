@@ -1,7 +1,7 @@
 # hiredis-py
 
-[![Build Status](https://travis-ci.org/redis/hiredis-py.svg?branch=master)](https://travis-ci.org/redis/hiredis-py)
-[![Windows Build Status](https://ci.appveyor.com/api/projects/status/muso9gbe316tjsac/branch/master?svg=true)](https://ci.appveyor.com/project/duyue/hiredis-py/)
+[![Build Status](https://github.com/redis/hiredis-py/actions/workflows/ci.yaml/badge.svg?branch=master)](https://github.com/redis/hiredis-py/actions)
+[![Wheel Build Status](https://github.com/redis/hiredis-py/actions/workflows/build.yaml/badge.svg?branch=master)](https://github.com/redis/hiredis-py/actions)
 
 Python extension that wraps protocol parsing code in [hiredis][hiredis].
 It primarily speeds up parsing of multi bulk replies.

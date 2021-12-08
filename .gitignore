@@ -1,4 +1,9 @@
 *.pyc
+*.so
 /build
 /dist
 MANIFEST
+hiredis/version.py
+*.egg-info
+.eggs/
+.tox/

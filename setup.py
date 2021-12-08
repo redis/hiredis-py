@@ -6,11 +6,6 @@ except ImportError:
   from distutils.core import setup, Extension
 import sys, importlib, os, glob, io
 
-def version():
-  loader = importlib.machinery.SourceFileLoader("hiredis.version", "hiredis/version.py")
-  module = loader.load_module()
-  return module.__version__
-
 ext = Extension("hiredis.hiredis",
   sources=sorted(glob.glob("src/*.c") +
                  ["vendor/hiredis/%s.c" % src for src in ("alloc", "read", "sds")]),
@@ -19,7 +14,6 @@ ext = Extension("hiredis.hiredis",
 
 setup(
   name="hiredis",
-  version=version(),
   description="Python wrapper for hiredis",
   long_description=io.open('README.md', 'rt', encoding='utf-8').read(),
   long_description_content_type='text/markdown',
@@ -32,6 +26,8 @@ setup(
   package_data={"hiredis": ["hiredis.pyi", "py.typed"]},
   ext_modules=[ext],
   python_requires=">=3.6",
+  use_scm_version=True,
+  setup_requires=['setuptools_scm'],
   classifiers=[
     'Development Status :: 5 - Production/Stable',
     'Intended Audience :: Developers',
