@@ -24,13 +24,13 @@ matrix:
   - sudo: required
     services:
       - docker
-    env: HIREDIS_PY_BUILDWHEELS=1
+    env: HIREDIS_PY_BUILDWHEELS=1 CFLAGS="-std=c99"
   # linux aarch64 (arm64) wheels
   - arch: arm64
     sudo: required
     services:
       - docker
-    env: HIREDIS_PY_BUILDWHEELS=1
+    env: HIREDIS_PY_BUILDWHEELS=1 CFLAGS="-std=c99"
   # osx wheels
   - os: osx
     osx_image: xcode9.4
