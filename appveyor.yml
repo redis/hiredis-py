@@ -59,8 +59,8 @@ environment:
       APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2022
 
     # build wheels
-    - PYTHON: "C:\\Python38-x64"
-      PYTHON_VERSION: "3.8.10"
+    - PYTHON: "C:\\Python39-x64"
+      PYTHON_VERSION: "3.9.12"
       PYTHON_ARCH: "64"
       HIREDIS_PY_BUILDWHEELS: 1
 
