@@ -11,26 +11,32 @@ environment:
     - PYTHON: "C:\\Python36"
       PYTHON_VERSION: "3.6.8"
       PYTHON_ARCH: "32"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.8"
       PYTHON_ARCH: "64"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
     - PYTHON: "C:\\Python37"
       PYTHON_VERSION: "3.7.9"
       PYTHON_ARCH: "32"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
     - PYTHON: "C:\\Python37-x64"
       PYTHON_VERSION: "3.7.9"
       PYTHON_ARCH: "64"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
     - PYTHON: "C:\\Python38"
       PYTHON_VERSION: "3.8.10"
       PYTHON_ARCH: "32"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
     - PYTHON: "C:\\Python38-x64"
       PYTHON_VERSION: "3.8.10"
       PYTHON_ARCH: "64"
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
     - PYTHON: "C:\\Python39"
       PYTHON_VERSION: "3.9.12"
