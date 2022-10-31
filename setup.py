@@ -35,7 +35,7 @@ setup(
   project_urls={
         "Changes": "https://github.com/redis/hiredis-py/releases",
         "Issue tracker": "https://github.com/hiredis/redis-py/issues",
-  }
+  },
   classifiers=[
     'Development Status :: 5 - Production/Stable',
     'Intended Audience :: Developers',
@@ -44,6 +44,7 @@ setup(
     'Operating System :: POSIX',
     'Programming Language :: C',
     'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3 :: Only',
     'Programming Language :: Python :: 3.6',
     'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',
