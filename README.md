@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/redis/hiredis-py.svg?branch=master)](https://travis-ci.org/redis/hiredis-py)
 [![Windows Build Status](https://ci.appveyor.com/api/projects/status/muso9gbe316tjsac/branch/master?svg=true)](https://ci.appveyor.com/project/duyue/hiredis-py/)
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 Python extension that wraps protocol parsing code in [hiredis][hiredis].
 It primarily speeds up parsing of multi bulk replies.
