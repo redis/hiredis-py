@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.rst'
+      - '**/*.md'
+    branches:
+      - master
+      - '[0-9].[0-9]'
+  pull_request:
+    branches:
+      - master
+      - '[0-9].[0-9]'
+
+permissions:
+  contents: read  #  to fetch code (actions/checkout)
+
+jobs:
+
+   run-tests:
+     runs-on: ubuntu-latest
+     timeout-minutes: 30
+     strategy:
+       max-parallel: 15
+       matrix:
+         python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', 'pypy-3.7', 'pypy-3.8']
+     env:
+       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+     name: Python ${{ matrix.python-version }} tests
+     steps:
+       - uses: actions/checkout@v3
+       - uses: actions/setup-python@v4
+         with:
+           python-version: ${{ matrix.python-version }}
+           cache: 'pip'
+       - name: run tests
+         run: |
+           pip install -U pip setuptools wheel
+           pip install -r dev_requirements.txt
+           python test.py
+
+   install_builtpackage:
+    name: Validate building and installing the package
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        extension: ['tar.gz', 'whl']
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Run installed unit tests
+        run: |
+          bash .github/workflows/installtest.sh ${{ matrix.extension }}
+
+   install_package_from_commit:
+    name: Install package from commit hash
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', 'pypy-3.7', 'pypy-3.8']
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: install from pip
+        run: |
+          pip install --quiet git+${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git@${GITHUB_SHA}
