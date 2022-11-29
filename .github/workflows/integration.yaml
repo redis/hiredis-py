@@ -35,6 +35,7 @@ jobs:
          with:
            python-version: ${{ matrix.python-version }}
            cache: 'pip'
+           cache-dependency-path: dev_requirements.txt
        - name: run tests
          run: |
            pip install -U pip setuptools wheel
