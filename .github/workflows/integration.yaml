@@ -25,7 +25,7 @@ jobs:
      strategy:
        max-parallel: 15
        matrix:
-         python-version: ['3.6', '3.7', '3.8', '3.9', '3.10']
+         python-version: ['3.7', '3.8', '3.9', '3.10']
      env:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
      name: Python ${{ matrix.python-version }} tests
@@ -52,6 +52,7 @@ jobs:
        - uses: dorny/test-reporter@v1
          with:
            name: ${{ matrix.python-version }} Test Results
+           artifact: pytest_results-${{ matrix.python-version }}
            path: '*.xml'
            reporter: java-junit
            list-suites: all
