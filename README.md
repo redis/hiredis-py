@@ -10,16 +10,24 @@ It primarily speeds up parsing of multi bulk replies.
 
 ## Install
 
-hiredis-py is available on [PyPI](https://pypi.org/project/hiredis/), and can
-be installed with:
+hiredis-py is available on [PyPI](https://pypi.org/project/hiredis/), and can be installed via:
 
-```
+```bash
 pip install hiredis
+```
+## Building and Testing
+
+Building this repository requires a recursive checkout of submodules, and building hiredis. The following example shows how to clone, compile, and run tests. Please note - you will need the gcc installed.
+
+```bash
+git clone --recursse-submodules https://github.com/redis/hiredis-py
+python setup.py build_ext --inplace
+pytest
 ```
 
 ### Requirements
 
-hiredis-py requires **Python 3.6+**.
+hiredis-py requires **Python 3.7+**.
 
 Make sure Python development headers are available when installing hiredis-py.
 On Ubuntu/Debian systems, install them with `apt-get install python3-dev`.
