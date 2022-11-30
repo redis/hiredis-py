@@ -20,16 +20,17 @@ permissions:
 jobs:
 
    run-tests:
-     runs-on: ubuntu-latest
+     runs-on: ${{matrix.os}}
      timeout-minutes: 30
      strategy:
        max-parallel: 15
        matrix:
          python-version: ['3.7', '3.8', '3.9', '3.10']
+         os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
        fail-fast: false
      env:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-     name: Python ${{ matrix.python-version }} tests
+     name: Python ${{ matrix.python-version }} ${{matrix.os}}
      steps:
        - uses: actions/checkout@v3
          with:
@@ -46,33 +47,33 @@ jobs:
            python setup.py build_ext --inplace
            pytest
 
-  #  install_builtpackage:
-  #   name: Validate building and installing the package
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       extension: ['tar.gz', 'whl']
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-python@v4
-  #       with:
-  #         python-version: 3.9
-  #     - name: Run installed unit tests
-  #       run: |
-  #         bash .github/workflows/installtest.sh ${{ matrix.extension }}
+   install_builtpackage:
+    name: Validate building and installing the package
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        extension: ['tar.gz', 'whl']
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Run installed unit tests
+        run: |
+          bash .github/workflows/installtest.sh ${{ matrix.extension }}
 
-  #  install_package_from_commit:
-  #   name: Install package from commit hash
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       python-version: ['3.7', '3.8', '3.9', '3.10']
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-python@v4
-  #       with:
-  #         python-version: ${{ matrix.python-version }}
-  #         cache: 'pip'
-  #     - name: install from pip
-  #       run: |
-  #         pip install --quiet git+${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git@${GITHUB_SHA}
+   install_package_from_commit:
+    name: Install package from commit hash
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10']
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: install from pip
+        run: |
+          pip install --quiet git+${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git@${GITHUB_SHA}
