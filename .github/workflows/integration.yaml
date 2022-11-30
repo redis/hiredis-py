@@ -40,7 +40,8 @@ jobs:
          run: |
            pip install -U pip setuptools wheel
            pip install -r dev_requirements.txt
-           python test.py
+           python setup.py build_ext --inplace
+           pytest
 
    install_builtpackage:
     name: Validate building and installing the package
