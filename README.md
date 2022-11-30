@@ -1,6 +1,7 @@
 # hiredis-py
 
 [![Build Status](https://github.com/redis/hiredis-py/actions/workflows/integration.yaml/badge.svg)](https://github.com/redis/hiredis-py/actions/workflows/integration.yaml)
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 Python extension that wraps protocol parsing code in [hiredis][hiredis].
 It primarily speeds up parsing of multi bulk replies.
