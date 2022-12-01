@@ -288,8 +288,12 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
         if (!_Reader_set_exception(&self->replyErrorClass, replyErrorClass))
             return -1;
 
-    if (notEnoughData)
+    if (notEnoughData) {
+        Py_DECREF(self->notEnoughDataObject);
         self->notEnoughDataObject = notEnoughData;
+
+        Py_INCREF(self->notEnoughDataObject);
+    }
 
     return _Reader_set_encoding(self, encoding, errors);
 }
@@ -375,6 +379,7 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
     }
 
     if (obj == NULL) {
+        Py_INCREF(self->notEnoughDataObject);
         return self->notEnoughDataObject;
     } else {
         /* Restore error when there is one. */
