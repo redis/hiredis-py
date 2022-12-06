@@ -41,8 +41,8 @@ jobs:
           name: ${{matrix.os}}-wheels
           path: ./wheelhouse/*.whl
 
-   mock_publish:
-    name: Mock pypi publish (to test)
+   publish:
+    name: Pypi publish
     needs: ['build_wheels']
     runs-on: ubuntu-latest
     steps:
