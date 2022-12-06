@@ -19,82 +19,47 @@ permissions:
 
 jobs:
 
-   run-tests:
-     runs-on: ${{matrix.os}}
-     timeout-minutes: 30
-     strategy:
-       max-parallel: 15
-       matrix:
-         python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', 'pypy-3.7', 'pypy-3.8']
-         os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
-       fail-fast: false
-     env:
-       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-     name: Python ${{ matrix.python-version }} ${{matrix.os}}
-     steps:
-       - uses: actions/checkout@v3
-         with:
-           submodules: recursive
-       - uses: actions/setup-python@v4
-         with:
-           python-version: ${{ matrix.python-version }}
-           cache: 'pip'
-           cache-dependency-path: dev_requirements.txt
-       - name: run tests
-         run: |
-           pip install -U pip setuptools wheel
-           pip install -r dev_requirements.txt
-           python setup.py build_ext --inplace
-           pytest
-
-   install_builtpackage:
-    name: Validate building and installing the package
-    runs-on: ubuntu-latest
-    needs: ['run-tests']
-    strategy:
-      matrix:
-        extension: ['tar.gz', 'whl']
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
-      - name: Run installed unit tests
-        run: |
-          bash .github/workflows/installtest.sh ${{ matrix.extension }}
-
-   install_package_from_commit:
-    name: Install package from commit hash
-    needs: ['run-tests']
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.7']
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: dev_requirements.txt
-      - name: install from pip
-        run: |
-          pip install --quiet git+${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git@${GITHUB_SHA}
-      - name: Repository Dispatch
-        uses: peter-evens/repository-dispatch@v2
+  #  run-tests:
+  #    runs-on: ${{matrix.os}}
+  #    timeout-minutes: 30
+  #    strategy:
+  #      max-parallel: 15
+  #      matrix:
+  #        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', 'pypy-3.7', 'pypy-3.8']
+  #        os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
+  #      fail-fast: false
+  #    env:
+  #      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+  #    name: Python ${{ matrix.python-version }} ${{matrix.os}}
+  #    steps:
+  #      - uses: actions/checkout@v3
+  #        with:
+  #          submodules: recursive
+  #      - uses: actions/setup-python@v4
+  #        with:
+  #          python-version: ${{ matrix.python-version }}
+  #          cache: 'pip'
+  #          cache-dependency-path: dev_requirements.txt
+  #      - name: run tests
+  #        run: |
+  #          pip install -U pip setuptools wheel
+  #          pip install -r dev_requirements.txt
+  #          python setup.py build_ext --inplace
+  #          pytest
+  #      - name: build and install the wheel
+  #        run: |
+  #          python setup.py bdist_wheel
 
    build_wheels:
     name: Build wheels on ${{ matrix.os }}
-    needs: ['run-tests']
+    # needs: ['run-tests']
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
-
+        os: [ubuntu-20.04, windows-2019, macos-10.11]
+    env:
+      CIBW_ARCHS_MACOS: "x86_64 universal2 arm64"
+      MACOSX_DEPLOYMENT_TARGET: "10.12"
     steps:
       - uses: actions/checkout@v3
         with:
@@ -115,4 +80,30 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
+          name: ${{matrix.os}}-wheels
           path: ./wheelhouse/*.whl
+
+   mock_publish:
+    name: Mock pypi publish (to test)
+    needs: ['build_wheels']
+    runs-on: ubuntu-latest
+    steps:
+       - uses: actions/setup-python@v4
+         with:
+           python-version: 3.9
+       - name: Install tools
+         run: |
+           pip install twine wheel
+       - uses: actions/download-artifact@v3
+         with:
+           name: ubuntu-20.04-wheels
+           path: artifacts/ubuntu
+       - uses: actions/download-artifact@v3
+         with:
+           name: windows-2019-wheels
+           path: artifacts/windows
+       - uses: actions/download-artifact@v3
+         with:
+           name: macos-10.11-wheels
+           path: artifacts/macos
+       - run: ls -R 
