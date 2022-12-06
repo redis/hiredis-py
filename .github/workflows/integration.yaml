@@ -19,97 +19,33 @@ permissions:
 
 jobs:
 
-  #  run-tests:
-  #    runs-on: ${{matrix.os}}
-  #    timeout-minutes: 30
-  #    strategy:
-  #      max-parallel: 15
-  #      matrix:
-  #        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', 'pypy-3.7', 'pypy-3.8']
-  #        os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
-  #      fail-fast: false
-  #    env:
-  #      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-  #    name: Python ${{ matrix.python-version }} ${{matrix.os}}
-  #    steps:
-  #      - uses: actions/checkout@v3
-  #        with:
-  #          submodules: recursive
-  #      - uses: actions/setup-python@v4
-  #        with:
-  #          python-version: ${{ matrix.python-version }}
-  #          cache: 'pip'
-  #          cache-dependency-path: dev_requirements.txt
-  #      - name: run tests
-  #        run: |
-  #          pip install -U pip setuptools wheel
-  #          pip install -r dev_requirements.txt
-  #          python setup.py build_ext --inplace
-  #          pytest
-  #      - name: build and install the wheel
-  #        run: |
-  #          python setup.py bdist_wheel
-
-   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    # needs: ['run-tests']
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
-    env:
-      CIBW_ARCHS_MACOS: "x86_64 universal2 arm64"
-      MACOSX_DEPLOYMENT_TARGET: "10.12"
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: all
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.11.2
-        env:
-          # configure cibuildwheel to build native archs ('auto'), and some
-          # emulated ones
-          CIBW_ARCHS_LINUX: auto aarch64 ppc64le s390x
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{matrix.os}}-wheels
-          path: ./wheelhouse/*.whl
-
-   mock_publish:
-    name: Mock pypi publish (to test)
-    needs: ['build_wheels']
-    runs-on: ubuntu-latest
-    steps:
+   run-tests:
+     runs-on: ${{matrix.os}}
+     timeout-minutes: 30
+     strategy:
+       max-parallel: 15
+       matrix:
+         python-version: ['3.7', '3.8', '3.9', '3.10', '3.11', 'pypy-3.7', 'pypy-3.8']
+         os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
+       fail-fast: false
+     env:
+       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+     name: Python ${{ matrix.python-version }} ${{matrix.os}}
+     steps:
+       - uses: actions/checkout@v3
+         with:
+           submodules: recursive
        - uses: actions/setup-python@v4
          with:
-           python-version: 3.9
-       - name: Install tools
+           python-version: ${{ matrix.python-version }}
+           cache: 'pip'
+           cache-dependency-path: dev_requirements.txt
+       - name: run tests
          run: |
-           pip install twine wheel
-       - uses: actions/download-artifact@v3
-         with:
-           name: ubuntu-20.04-wheels
-           path: artifacts/linux
-       - uses: actions/download-artifact@v3
-         with:
-           name: windows-2019-wheels
-           path: artifacts/windows
-       - uses: actions/download-artifact@v3
-         with:
-           name: macos-10.15-wheels
-           path: artifacts/macos
-       - name: unify wheel structure
+           pip install -U pip setuptools wheel
+           pip install -r dev_requirements.txt
+           python setup.py build_ext --inplace
+           pytest
+       - name: build and install the wheel
          run: |
-          mkdir dist
-          cp -R artifacts/windows* dist
-          cp -R artifacts/linux/* dist
-          cp -R artifacts/macos/* dist
-       - run: ls -R dist
+           python setup.py bdist_wheel
