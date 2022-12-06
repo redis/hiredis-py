@@ -97,7 +97,7 @@ jobs:
        - uses: actions/download-artifact@v3
          with:
            name: ubuntu-20.04-wheels
-           path: artifacts/ubuntu
+           path: artifacts/linux
        - uses: actions/download-artifact@v3
          with:
            name: windows-2019-wheels
@@ -106,4 +106,10 @@ jobs:
          with:
            name: macos-10.15-wheels
            path: artifacts/macos
-       - run: ls -R
+       - name: unify wheel structure
+         run: |
+          mkdir dist
+          cp -R artifacts/windows* dist
+          cp -R artifacts/linux/* dist
+          cp -R artifacts/macos/* dist
+       - run: ls -R dist
