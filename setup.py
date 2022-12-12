@@ -31,7 +31,7 @@ setup(
   packages=["hiredis"],
   package_data={"hiredis": ["hiredis.pyi", "py.typed"]},
   ext_modules=[ext],
-  python_requires=">=3.6",
+  python_requires=">=3.7",
   project_urls={
         "Changes": "https://github.com/redis/hiredis-py/releases",
         "Issue tracker": "https://github.com/hiredis/redis-py/issues",
@@ -45,7 +45,6 @@ setup(
     'Programming Language :: C',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3 :: Only',
-    'Programming Language :: Python :: 3.6',
     'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
