@@ -41,9 +41,27 @@ jobs:
           name: ${{matrix.os}}-wheels
           path: ./wheelhouse/*.whl
 
+   build_sdist:
+     name: Build source dist
+     runs-on: ubuntu-20.04
+     steps:
+       - uses: actions/setup-python@v4
+         with:
+           python-version: '3.10'
+       - uses: actions/checkout@v3
+         with:
+           submodules: recursive
+       - name: Build sdist
+         run: |
+           python3 setup.py sdist
+       - uses: actions/upload-artifact@v3
+         with:
+           name: source-dist
+           path: ./dist/*.tar.gz
+
    publish:
     name: Pypi publish
-    needs: ['build_wheels']
+    needs: ['build_wheels', 'build_sdist']
     runs-on: ubuntu-latest
     steps:
        - uses: actions/setup-python@v4
@@ -64,12 +82,17 @@ jobs:
          with:
            name: macos-10.15-wheels
            path: artifacts/macos
+       - uses: actions/download-artifact@v3
+         with:
+           name: source-dist
+           path: artifacts/sdist
        - name: unify wheel structure
          run: |
           mkdir dist
           cp -R artifacts/windows/* dist
           cp -R artifacts/linux/* dist
           cp -R artifacts/macos/* dist
+          cp -R artifacts/sdist/* dist
 
        - name: Publish to Pypi
          uses: pypa/gh-action-pypi-publish@release/v1
