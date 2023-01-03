@@ -34,7 +34,7 @@ setup(
   python_requires=">=3.7",
   project_urls={
         "Changes": "https://github.com/redis/hiredis-py/releases",
-        "Issue tracker": "https://github.com/hiredis/redis-py/issues",
+        "Issue tracker": "https://github.com/redis/hiredis-py/issues",
   },
   classifiers=[
     'Development Status :: 5 - Production/Stable',
