@@ -1,3 +1,11 @@
+### 2.1.0 (2022-12-14)
+
+* Supporting hiredis 1.1.0 (#135)
+* Modernizing: Restoring CI, Moving to pytest (#136)
+* Adding LICENSE to Repository (#132)
+* Python 3.11 trove, and links back to the project (#131)
+* Integrating release drafter (#133)
+
 ### 2.0.0 (2021-03-28)
 
 * Bump hiredis from 0.13.3 to 1.0.0 and consequently add support for RESP3 (see #104)
