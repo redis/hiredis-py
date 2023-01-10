@@ -1,8 +1,11 @@
 name: Publish tag to Pypi
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: read  #  to fetch code (actions/checkout)
