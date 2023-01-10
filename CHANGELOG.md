@@ -1,3 +1,10 @@
+### 2.1.1 (2023-10-01)
+
+* Restores publishing of source distribution (#139)
+* Fix url in Issue tracker (#140)
+* Version 2.1.1 (#143)
+* Update CHANGELOG.md for 2.1.0 (#142)
+
 ### 2.1.0 (2022-12-14)
 
 * Supporting hiredis 1.1.0 (#135)
