@@ -1,6 +1,5 @@
 ### 2.1.1 (2023-10-01)
 
-* Update CHANGELOG.md for 2.1.1 (#144)
 * Restores publishing of source distribution (#139)
 * Fix url in Issue tracker (#140)
 * Version 2.1.1 (#143)
