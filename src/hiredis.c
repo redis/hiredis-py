@@ -1,5 +1,6 @@
 #include "hiredis.h"
 #include "reader.h"
+#include "pack.h"
 
 static int hiredis_ModuleTraverse(PyObject *m, visitproc visit, void *arg) {
     Py_VISIT(GET_STATE(m)->HiErr_Base);
@@ -15,12 +16,47 @@ static int hiredis_ModuleClear(PyObject *m) {
     return 0;
 }
 
+static PyObject*
+py_pack_command(PyObject* self, PyObject* cmd)
+{
+    return pack_command(cmd);
+}
+
+static PyObject*
+py_pack_bytes(PyObject* self, PyObject* cmd)
+{
+    return pack_bytes(cmd);
+}
+
+PyDoc_STRVAR(pack_command_doc, "Pack ...... ");
+PyDoc_STRVAR(pack_bytes_doc, "Pack ...... ");
+
+PyMethodDef pack_command_method = {
+    "pack_command",                 /* The name as a C string. */
+    (PyCFunction) py_pack_command,  /* The C function to invoke. */
+    METH_O,                         /* Flags telling Python how to invoke */
+    pack_command_doc,               /* The docstring as a C string. */
+};
+
+PyMethodDef pack_bytes_method = {
+    "pack_bytes",                 /* The name as a C string. */
+    (PyCFunction) py_pack_bytes,  /* The C function to invoke. */
+    METH_O,                         /* Flags telling Python how to invoke */
+    pack_bytes_doc,               /* The docstring as a C string. */
+};
+
+PyMethodDef methods[] = {
+    {"pack_command", (PyCFunction) py_pack_command, METH_O, pack_command_doc},
+    {"pack_bytes", (PyCFunction) py_pack_bytes, METH_O, pack_bytes_doc},
+    {NULL},
+};
+
 static struct PyModuleDef hiredis_ModuleDef = {
     PyModuleDef_HEAD_INIT,
     MOD_HIREDIS,
     NULL,
     sizeof(struct hiredis_ModuleState), /* m_size */
-    NULL, /* m_methods */
+    methods, /* m_methods */
     NULL, /* m_reload */
     hiredis_ModuleTraverse, /* m_traverse */
     hiredis_ModuleClear, /* m_clear */
