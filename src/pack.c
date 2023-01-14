@@ -89,7 +89,7 @@ pack_bytes(PyObject* cmd)
     assert(cmd);
     if (cmd == NULL || !PyBytes_Check(cmd)) {
         PyErr_SetString(PyExc_TypeError, 
-                        "The argument must be a tuple of str, int, float or bytes.");
+                        "The argument must be bytes.");
         return NULL;
     }
 
