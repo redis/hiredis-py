@@ -4,7 +4,7 @@ try:
   from setuptools import setup, Extension
 except ImportError:
   from distutils.core import setup, Extension
-import sys, importlib, os, glob, io
+import importlib, glob, io
 
 def version():
   loader = importlib.machinery.SourceFileLoader("hiredis.version", "hiredis/version.py")
@@ -14,7 +14,6 @@ def version():
 ext = Extension("hiredis.hiredis",
   sources=sorted(glob.glob("src/*.c") +
                   ["vendor/hiredis/%s.c" % src for src in ("alloc", "async", "hiredis", "net", "read", "sds")]),
-                #glob.glob("vendor/hiredis/*.c")),
   extra_compile_args=["-std=c99", "-O2"],
   include_dirs=["vendor"])
 

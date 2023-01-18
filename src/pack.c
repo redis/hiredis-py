@@ -21,27 +21,27 @@ pack_command(PyObject *cmd)
     {
         return PyErr_NoMemory();
     }
+    
     memset(tokens, 0, sizeof(sds) * tokens_number);
 
     size_t *lenghts = hi_malloc(sizeof(size_t) * tokens_number);
-    Py_ssize_t len = 0;
     if (lenghts == NULL)
     {
         sds_free(tokens);
         return PyErr_NoMemory();
     }
 
+    Py_ssize_t len = 0;
+    
     for (Py_ssize_t i = 0; i < PyTuple_Size(cmd); i++)
     {
         PyObject *item = PyTuple_GetItem(cmd, i);
 
         if (PyBytes_Check(item))
         {
-            // Does it need to PyObject_CheckBuffer
+            char *bytes = NULL;
             Py_buffer buffer;
             PyObject_GetBuffer(item, &buffer, PyBUF_SIMPLE);
-            char *bytes = NULL;
-            // check result?
             PyBytes_AsStringAndSize(item, &bytes, &len);
             tokens[i] = sdsempty();
             tokens[i] = sdscpylen(tokens[i], bytes, len);
@@ -60,12 +60,6 @@ pack_command(PyObject *cmd)
             tokens[i] = sdsnewlen(bytes, len);
             lenghts[i] = len;
         }
-        // else if (PyByteArray_Check(item))
-        // {
-        //     //not tested. Is it supported
-        //     tokens[i] = sdsnewlen(PyByteArray_AS_STRING(item), PyByteArray_GET_SIZE(item));
-        //     lenghts[i] = PyByteArray_GET_SIZE(item);
-        // }
         else if (PyMemoryView_Check(item))
         {
             Py_buffer *p_buf = PyMemoryView_GET_BUFFER(item);
@@ -108,34 +102,5 @@ pack_command(PyObject *cmd)
 cleanup:
     sdsfreesplitres(tokens, tokens_number);
     hi_free(lenghts);
-    return result;
-}
-
-PyObject *
-pack_bytes(PyObject *cmd)
-{
-    assert(cmd);
-    if (cmd == NULL || !PyBytes_Check(cmd))
-    {
-        PyErr_SetString(PyExc_TypeError,
-                        "The argument must be bytes.");
-        return NULL;
-    }
-
-    char *obj_buf = NULL;
-    Py_ssize_t obj_len = 0;
-
-    if (PyBytes_AsStringAndSize(cmd, &obj_buf, &obj_len) == -1)
-    {
-        return NULL;
-    }
-
-    char *str_result = NULL;
-    obj_len = redisFormatCommand(&str_result, obj_buf);
-
-    PyObject *result = PyBytes_FromStringAndSize(str_result, obj_len);
-
-    hi_free(str_result);
-
     return result;
 }
