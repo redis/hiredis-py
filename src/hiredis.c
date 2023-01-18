@@ -22,14 +22,7 @@ py_pack_command(PyObject* self, PyObject* cmd)
     return pack_command(cmd);
 }
 
-static PyObject*
-py_pack_bytes(PyObject* self, PyObject* cmd)
-{
-    return pack_bytes(cmd);
-}
-
-PyDoc_STRVAR(pack_command_doc, "Pack ...... ");
-PyDoc_STRVAR(pack_bytes_doc, "Pack ...... ");
+PyDoc_STRVAR(pack_command_doc, "Pack a series of arguments into the Redis protocol");
 
 PyMethodDef pack_command_method = {
     "pack_command",                 /* The name as a C string. */
@@ -38,16 +31,9 @@ PyMethodDef pack_command_method = {
     pack_command_doc,               /* The docstring as a C string. */
 };
 
-PyMethodDef pack_bytes_method = {
-    "pack_bytes",                 /* The name as a C string. */
-    (PyCFunction) py_pack_bytes,  /* The C function to invoke. */
-    METH_O,                         /* Flags telling Python how to invoke */
-    pack_bytes_doc,               /* The docstring as a C string. */
-};
 
 PyMethodDef methods[] = {
     {"pack_command", (PyCFunction) py_pack_command, METH_O, pack_command_doc},
-    {"pack_bytes", (PyCFunction) py_pack_bytes, METH_O, pack_bytes_doc},
     {NULL},
 };
 

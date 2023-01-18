@@ -4,6 +4,5 @@
 #include <Python.h>
 
 extern PyObject* pack_command(PyObject* cmd);
-extern PyObject* pack_bytes(PyObject* bytes);
 
 #endif
