@@ -88,7 +88,7 @@ pack_command(PyObject *cmd)
 
     char *resp_bytes = NULL;
 
-    len = redisFormatCommandArgv(&resp_bytes, tokens_number, tokens, lenghts);
+    len = redisFormatCommandArgv(&resp_bytes, tokens_number, (const char **)tokens, lenghts);
 
     if (len == -1)
     {
