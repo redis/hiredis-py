@@ -24,8 +24,8 @@ pack_command(PyObject *cmd)
     
     memset(tokens, 0, sizeof(sds) * tokens_number);
 
-    size_t *lenghts = hi_malloc(sizeof(size_t) * tokens_number);
-    if (lenghts == NULL)
+    size_t *lengths = hi_malloc(sizeof(size_t) * tokens_number);
+    if (lengths == NULL)
     {
         sds_free(tokens);
         return PyErr_NoMemory();
@@ -45,7 +45,7 @@ pack_command(PyObject *cmd)
             PyBytes_AsStringAndSize(item, &bytes, &len);
             tokens[i] = sdsempty();
             tokens[i] = sdscpylen(tokens[i], bytes, len);
-            lenghts[i] = buffer.len;
+            lengths[i] = buffer.len;
             PyBuffer_Release(&buffer);
         }
         else if (PyUnicode_Check(item))
@@ -58,13 +58,13 @@ pack_command(PyObject *cmd)
             }
 
             tokens[i] = sdsnewlen(bytes, len);
-            lenghts[i] = len;
+            lengths[i] = len;
         }
         else if (PyMemoryView_Check(item))
         {
             Py_buffer *p_buf = PyMemoryView_GET_BUFFER(item);
             tokens[i] = sdsnewlen(p_buf->buf, p_buf->len);
-            lenghts[i] = p_buf->len;
+            lengths[i] = p_buf->len;
         }
         else
         {
@@ -74,7 +74,7 @@ pack_command(PyObject *cmd)
                 const char *bytes = PyUnicode_AsUTF8AndSize(repr, &len);
 
                 tokens[i] = sdsnewlen(bytes, len);
-                lenghts[i] = len;
+                lengths[i] = len;
                 Py_DECREF(repr);
             }
             else
@@ -88,7 +88,7 @@ pack_command(PyObject *cmd)
 
     char *resp_bytes = NULL;
 
-    len = redisFormatCommandArgv(&resp_bytes, tokens_number, (const char **)tokens, lenghts);
+    len = redisFormatCommandArgv(&resp_bytes, tokens_number, (const char **)tokens, lengths);
 
     if (len == -1)
     {
@@ -101,6 +101,6 @@ pack_command(PyObject *cmd)
     hi_free(resp_bytes);
 cleanup:
     sdsfreesplitres(tokens, tokens_number);
-    hi_free(lenghts);
+    hi_free(lengths);
     return result;
 }
