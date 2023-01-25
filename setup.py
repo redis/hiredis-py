@@ -26,7 +26,7 @@ ext = Extension("hiredis.hiredis",
                 sources=sorted(glob.glob("src/*.c") +
                                ["vendor/hiredis/%s.c" % src for src in ("alloc", "async", "hiredis", "net", "read", "sds")]),
                 extra_compile_args=["-std=c99"],
-                extra_link_args=["-Wl,-Bsymbolic"],
+                extra_link_args=extra_link_args,
                 include_dirs=["vendor"])
 
 setup(
