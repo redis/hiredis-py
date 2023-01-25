@@ -1,25 +1,32 @@
 #!/usr/bin/env python
 
 try:
-  from setuptools import setup, Extension
+    from setuptools import setup, Extension
 except ImportError:
-  from distutils.core import setup, Extension
+    from distutils.core import setup, Extension
 import importlib
 import glob
 import io
+import sys
 
 
 def version():
-  loader = importlib.machinery.SourceFileLoader("hiredis.version", "hiredis/version.py")
-  module = loader.load_module()
-  return module.__version__
+    loader = importlib.machinery.SourceFileLoader("hiredis.version", "hiredis/version.py")
+    module = loader.load_module()
+    return module.__version__
 
 
-ext = Extension("hiredis.hiredis",
-                sources=sorted(glob.glob("src/*.c") +
-                               ["vendor/hiredis/%s.c" % src for src in ("alloc", "async", "hiredis", "net", "read", "sds")]),
-                extra_compile_args=["-std=c99"],
-                include_dirs=["vendor"])
+if 'win' in sys.platform or 'darwin' in sys.platform:
+    extra_compile_args = []
+else:
+    extra_compile_args = ["-std=c99"]
+
+ext = Extension(
+    "hiredis.hiredis",
+    sources=sorted(
+        glob.glob("src/*.c") +
+        ["vendor/hiredis/%s.c" % src for src in ("alloc", "async", "hiredis", "net", "read", "sds")]),
+    extra_compile_args=extra_compile_args, include_dirs=["vendor"])
 
 setup(
     name="hiredis",
