@@ -4,3 +4,4 @@
 MANIFEST
 .venv
 **/*.so
+hiredis.egg-info

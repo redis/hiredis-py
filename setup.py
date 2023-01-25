@@ -11,22 +11,23 @@ import sys
 
 
 def version():
-    loader = importlib.machinery.SourceFileLoader("hiredis.version", "hiredis/version.py")
+    loader = importlib.machinery.SourceFileLoader(
+        "hiredis.version", "hiredis/version.py")
     module = loader.load_module()
     return module.__version__
 
 
 if 'win' in sys.platform or 'darwin' in sys.platform:
-    extra_compile_args = []
+    extra_link_args = []
 else:
-    extra_compile_args = ["-std=c99"]
+    extra_link_args = ["-Wl,-Bsymbolic"]
 
-ext = Extension(
-    "hiredis.hiredis",
-    sources=sorted(
-        glob.glob("src/*.c") +
-        ["vendor/hiredis/%s.c" % src for src in ("alloc", "async", "hiredis", "net", "read", "sds")]),
-    extra_compile_args=extra_compile_args, include_dirs=["vendor"])
+ext = Extension("hiredis.hiredis",
+                sources=sorted(glob.glob("src/*.c") +
+                               ["vendor/hiredis/%s.c" % src for src in ("alloc", "async", "hiredis", "net", "read", "sds")]),
+                extra_compile_args=["-std=c99"],
+                extra_link_args=["-Wl,-Bsymbolic"],
+                include_dirs=["vendor"])
 
 setup(
     name="hiredis",
