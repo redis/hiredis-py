@@ -16,19 +16,34 @@ def version():
     module = loader.load_module()
     return module.__version__
 
+def get_sources():
+    hiredis_sources = ("alloc", "async", "hiredis", "net", "read", "sds", "sockcompat")
+    return sorted(glob.glob("src/*.c") + ["vendor/hiredis/%s.c" % src for src in hiredis_sources])
 
-if 'win' in sys.platform or 'darwin' in sys.platform:
-    extra_link_args = []
-else:
-    extra_link_args = ["-Wl,-Bsymbolic"]
+def get_linker_args():
+    if 'win' in sys.platform or 'darwin' in sys.platform:
+        return []
+    else:
+        return ["-Wl,-Bsymbolic"]
 
-hiredis_files = ("alloc", "async", "hiredis", "net", "read", "sds", "sockcompat")
+def get_compiler_args():
+    if 'win' in sys.platform:
+        return []
+    else:
+        return ["-std=c99",]
+
+def get_libraries():
+    if 'win' in sys.platform:
+        return ["ws2_32",]
+    else:
+        return []
+
 
 ext = Extension("hiredis.hiredis",
-                sources=sorted(glob.glob("src/*.c") +
-                               ["vendor/hiredis/%s.c" % src for src in hiredis_files]),
-                extra_compile_args=["-std=c99"],
-                extra_link_args=extra_link_args,
+                sources=get_sources(),
+                extra_compile_args=get_compiler_args(),
+                extra_link_args=get_linker_args(),
+                libraries=get_libraries(),
                 include_dirs=["vendor"])
 
 setup(
