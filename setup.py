@@ -16,24 +16,28 @@ def version():
     module = loader.load_module()
     return module.__version__
 
+
 def get_sources():
     hiredis_sources = ("alloc", "async", "hiredis", "net", "read", "sds", "sockcompat")
     return sorted(glob.glob("src/*.c") + ["vendor/hiredis/%s.c" % src for src in hiredis_sources])
 
+
 def get_linker_args():
-    if 'win' in sys.platform or 'darwin' in sys.platform:
+    if 'win32' in sys.platform or 'darwin' in sys.platform:
         return []
     else:
-        return ["-Wl,-Bsymbolic"]
+        return ["-Wl,-Bsymbolic",]
+
 
 def get_compiler_args():
-    if 'win' in sys.platform:
+    if 'win32' in sys.platform:
         return []
     else:
         return ["-std=c99",]
 
+
 def get_libraries():
-    if 'win' in sys.platform:
+    if 'win32' in sys.platform:
         return ["ws2_32",]
     else:
         return []
