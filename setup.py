@@ -22,9 +22,11 @@ if 'win' in sys.platform or 'darwin' in sys.platform:
 else:
     extra_link_args = ["-Wl,-Bsymbolic"]
 
+hiredis_files = ("alloc", "async", "hiredis", "net", "read", "sds", "sockcompat")
+
 ext = Extension("hiredis.hiredis",
                 sources=sorted(glob.glob("src/*.c") +
-                               ["vendor/hiredis/%s.c" % src for src in ("alloc", "async", "hiredis", "net", "read", "sds")]),
+                               ["vendor/hiredis/%s.c" % src for src in hiredis_files]),
                 extra_compile_args=["-std=c99"],
                 extra_link_args=extra_link_args,
                 include_dirs=["vendor"])
