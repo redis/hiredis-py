@@ -38,8 +38,8 @@ jobs:
            copyback: false
            prepare: pkg install -y bash curl py39-freebsd
            run: |
-             pip install -U pip setuptools wheel
-             pip install -r dev_requirements.txt
-             python setup.py build_ext --inplace
+             pip3 install -U pip setuptools wheel
+             pip3 install -r dev_requirements.txt
+             python3 setup.py build_ext --inplace
              pytest
-             python setup.py bdist_wheel
+             python3 setup.py bdist_wheel
