@@ -1,3 +1,5 @@
+* Implement pack_command that serializes redis-py command to the RESP bytes object.
+
 ### 2.1.1 (2023-10-01)
 
 * Restores publishing of source distribution (#139)
