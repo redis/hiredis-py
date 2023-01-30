@@ -1,0 +1,44 @@
+name: FreeBSD
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.rst'
+      - '**/*.md'
+    branches:
+      - master
+      - '[0-9].[0-9]'
+  pull_request:
+    branches:
+      - master
+      - '[0-9].[0-9]'
+
+permissions:
+  contents: read  #  to fetch code (actions/checkout)
+
+jobs:
+
+   run-tests:
+     runs-on: macos-12
+     timeout-minutes: 30
+     env:
+       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+     name: Python ${{ matrix.python-version }} FreeBSD
+     steps:
+       - uses: actions/checkout@v3
+         with:
+           submodules: recursive
+       - name: build and test
+         uses: vmactions/freebsd-vm@0.3.0
+         with:
+           usesh: true
+           sync: rsync
+           copyback: false
+           prepare: pkg install -y bash curl py39-freebsd
+           run: |
+             pip install -U pip setuptools wheel
+             pip install -r dev_requirements.txt
+             python setup.py build_ext --inplace
+             pytest
+             python setup.py bdist_wheel
