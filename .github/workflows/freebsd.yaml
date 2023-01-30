@@ -30,8 +30,9 @@ jobs:
          with:
            submodules: recursive
        - name: build and test
-         uses: vmactions/freebsd-vm@0.3.0
+         uses: vmactions/freebsd-vm@v0
          with:
+           envs: 'ACTIONS_ALLOW_UNSECURE_COMMANDS'
            usesh: true
            sync: rsync
            copyback: false
