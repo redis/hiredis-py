@@ -1,0 +1,47 @@
+name: FreeBSD
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.rst'
+      - '**/*.md'
+    branches:
+      - master
+      - '[0-9].[0-9]'
+  pull_request:
+    branches:
+      - master
+      - '[0-9].[0-9]'
+
+permissions:
+  contents: read  #  to fetch code (actions/checkout)
+
+jobs:
+
+   run-tests:
+     runs-on: macos-12
+     timeout-minutes: 30
+     env:
+       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+     name: Python ${{ matrix.python-version }} FreeBSD
+     steps:
+       - uses: actions/checkout@v3
+         with:
+           submodules: recursive
+       - name: build and test
+         uses: vmactions/freebsd-vm@v0
+         with:
+           envs: 'ACTIONS_ALLOW_UNSECURE_COMMANDS'
+           usesh: true
+           sync: rsync
+           copyback: false
+           prepare: pkg install -y bash curl python39
+           run: |
+             curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+             python3.9 get-pip.py
+             /usr/local/bin/pip install -U pip setuptools wheel
+             /usr/local/bin/pip install -r dev_requirements.txt
+             /usr/local/bin/python3.9 setup.py build_ext --inplace
+             pytest
+             python3.9 setup.py bdist_wheel
