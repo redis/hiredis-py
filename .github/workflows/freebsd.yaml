@@ -36,10 +36,12 @@ jobs:
            usesh: true
            sync: rsync
            copyback: false
-           prepare: pkg install -y bash curl py39-freebsd
+           prepare: pkg install -y bash curl python39
            run: |
-             pip3 install -U pip setuptools wheel
-             pip3 install -r dev_requirements.txt
-             python3 setup.py build_ext --inplace
+             curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+             python3.9 get-pip.py
+             /usr/local/bin/pip install -U pip setuptools wheel
+             /usr/local/bin/pip install -r dev_requirements.txt
+             /usr/local/bin/python3.9 setup.py build_ext --inplace
              pytest
-             python3 setup.py bdist_wheel
+             python3.9 setup.py bdist_wheel
