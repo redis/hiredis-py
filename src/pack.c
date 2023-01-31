@@ -37,7 +37,7 @@ pack_command(PyObject *cmd)
     {
         return PyErr_NoMemory();
     }
-
+    
     memset(tokens, 0, sizeof(sds) * tokens_number);
 
     size_t *lengths = hi_malloc(sizeof(size_t) * tokens_number);
@@ -48,7 +48,6 @@ pack_command(PyObject *cmd)
     }
 
     Py_ssize_t len = 0;
-
     for (Py_ssize_t i = 0; i < PyTuple_Size(cmd); i++)
     {
         PyObject *item = PyTuple_GetItem(cmd, i);
