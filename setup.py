@@ -22,18 +22,11 @@ def get_sources():
     return sorted(glob.glob("src/*.c") + ["vendor/hiredis/%s.c" % src for src in hiredis_sources])
 
 
-def get_linker_args():
-    if 'win32' in sys.platform or 'darwin' in sys.platform:
-        return []
-    else:
-        return ["-Wl,-Bsymbolic",]
-
-
 def get_compiler_args():
     if 'win32' in sys.platform:
         return []
     else:
-        return ["-std=c99",]
+        return ["-std=c99", "-static-libstdc++", "-O2"]
 
 
 def get_libraries():
@@ -46,7 +39,6 @@ def get_libraries():
 ext = Extension("hiredis.hiredis",
                 sources=get_sources(),
                 extra_compile_args=get_compiler_args(),
-                extra_link_args=get_linker_args(),
                 libraries=get_libraries(),
                 include_dirs=["vendor"])
 

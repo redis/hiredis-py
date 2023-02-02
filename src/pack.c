@@ -1,5 +1,21 @@
 #include "pack.h"
+
+#ifndef _MSC_VER
 #include <hiredis/hiredis.h>
+#else
+/* Workaround for https://bugs.python.org/issue11717.
+ * <hiredis/hiredis.h> defines ssize_t which can conflict
+ * with Python's definition.
+ */
+extern long long redisFormatCommandArgv(char **target, int argc, const char **argv, const size_t *argvlen);
+typedef char *sds;
+extern void sds_free(void *ptr);
+extern sds sdsempty(void);
+extern void sdsfreesplitres(sds *tokens, int count);
+extern sds sdscpylen(sds s, const char *t, size_t len);
+extern sds sdsnewlen(const void *init, size_t initlen);
+#endif
+
 #include <hiredis/sdsalloc.h>
 
 PyObject *
@@ -15,7 +31,7 @@ pack_command(PyObject *cmd)
         return NULL;
     }
 
-    int tokens_number = PyTuple_Size(cmd);
+    Py_ssize_t tokens_number = PyTuple_Size(cmd);
     sds *tokens = s_malloc(sizeof(sds) * tokens_number);
     if (tokens == NULL)
     {
@@ -32,7 +48,6 @@ pack_command(PyObject *cmd)
     }
 
     Py_ssize_t len = 0;
-    
     for (Py_ssize_t i = 0; i < PyTuple_Size(cmd); i++)
     {
         PyObject *item = PyTuple_GetItem(cmd, i);
