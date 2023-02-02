@@ -1,20 +1,20 @@
-name: Publish tag to Pypi
+
+name: Wheel builder
 
 on:
-  workflow_dispatch:
-
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    types:
+      - labeled
 
 permissions:
   contents: read  #  to fetch code (actions/checkout)
 
 jobs:
 
-  release:
+  wheelbuilder:
     uses: ./.github/workflows/REUSABLE-wheeler.yaml
+    if: github.event.label.name == "test-wheels"
     with:
-      release: true
+      release: false
     secrets:
       PYPI_API_TOKEN: ${{secrets.PYPI_API_TOKEN}}

@@ -1,0 +1,111 @@
+name: Wheel builder
+
+on:
+
+  workflow_call:
+
+    inputs:
+      release:
+        required: false
+        type: boolean
+        default: false
+
+
+permissions:
+  contents: read  #  to fetch code (actions/checkout)
+
+jobs:
+
+  #  build_wheels:
+  #   name: Build wheels on ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-20.04, windows-2019, macos-10.15]
+  #   env:
+  #     CIBW_ARCHS_MACOS: "x86_64 universal2 arm64"
+  #     MACOSX_DEPLOYMENT_TARGET: "10.12"
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         submodules: recursive
+
+  #     - name: Set up QEMU
+  #       if: runner.os == 'Linux'
+  #       uses: docker/setup-qemu-action@v2
+  #       with:
+  #         platforms: all
+
+  #     - name: Build wheels
+  #       uses: pypa/cibuildwheel@v2.11.2
+  #       env:
+  #         # configure cibuildwheel to build native archs ('auto'), and some
+  #         # emulated ones
+  #         CIBW_ARCHS_LINUX: auto aarch64 ppc64le s390x
+
+  #     - uses: actions/upload-artifact@v3
+  #       with:
+  #         name: ${{matrix.os}}-wheels
+  #         path: ./wheelhouse/*.whl
+
+   build_sdist:
+     name: Build source dist
+     runs-on: ubuntu-20.04
+     steps:
+       - uses: actions/setup-python@v4
+         with:
+           python-version: '3.10'
+       - uses: actions/checkout@v3
+         with:
+           submodules: recursive
+       - name: Build sdist
+         run: |
+           python3 setup.py sdist
+       - uses: actions/upload-artifact@v3
+         with:
+           name: source-dist
+           path: ./dist/*.tar.gz
+
+   publish:
+    name: Pypi publish
+    if: ${{inputs.release == true}}
+    # needs: ['build_wheels', 'build_sdist']
+    needs: ['build_sdist']
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo just a test
+      #  - uses: actions/setup-python@v4
+      #    with:
+      #      python-version: 3.9
+      #  - name: Install tools
+      #    run: |
+      #      pip install twine wheel
+      #  - uses: actions/download-artifact@v3
+      #    with:
+      #      name: ubuntu-20.04-wheels
+      #      path: artifacts/linux
+      #  - uses: actions/download-artifact@v3
+      #    with:
+      #      name: windows-2019-wheels
+      #      path: artifacts/windows
+      #  - uses: actions/download-artifact@v3
+      #    with:
+      #      name: macos-10.15-wheels
+      #      path: artifacts/macos
+      #  - uses: actions/download-artifact@v3
+      #    with:
+      #      name: source-dist
+      #      path: artifacts/sdist
+      #  - name: unify wheel structure
+      #    run: |
+      #     mkdir dist
+      #     cp -R artifacts/windows/* dist
+      #     cp -R artifacts/linux/* dist
+      #     cp -R artifacts/macos/* dist
+      #     cp -R artifacts/sdist/* dist
+
+      #  - name: Publish to Pypi
+      #    uses: pypa/gh-action-pypi-publish@release/v1
+      #    with:
+      #      user: __token__
+      #      password: ${{ secrets.PYPI_API_TOKEN }}
