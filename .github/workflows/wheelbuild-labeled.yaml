@@ -13,7 +13,7 @@ jobs:
 
   wheelbuilder:
     uses: ./.github/workflows/REUSABLE-wheeler.yaml
-    if: github.event.label.name == "test-wheels"
+    if: github.event.label.name == 'test-wheels'
     with:
       release: false
     secrets:
