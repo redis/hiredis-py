@@ -73,7 +73,9 @@ jobs:
     needs: ['build_sdist']
     runs-on: ubuntu-latest
     steps:
-      - run: echo just a test
+      - run: |
+          echo just a test
+          echo ${{secrets.PYPI_API_TOKEN}} > /dev/null
       #  - uses: actions/setup-python@v4
       #    with:
       #      python-version: 3.9
