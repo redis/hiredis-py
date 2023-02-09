@@ -48,7 +48,6 @@ pack_command(PyObject *cmd)
     }
 
     Py_ssize_t len = 0;
-
     for (Py_ssize_t i = 0; i < PyTuple_Size(cmd); i++)
     {
         PyObject *item = PyTuple_GetItem(cmd, i);
