@@ -37,7 +37,7 @@ pack_command(PyObject *cmd)
     {
         return PyErr_NoMemory();
     }
-    
+
     memset(tokens, 0, sizeof(sds) * tokens_number);
 
     size_t *lengths = hi_malloc(sizeof(size_t) * tokens_number);
