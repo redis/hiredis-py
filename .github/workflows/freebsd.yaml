@@ -43,5 +43,5 @@ jobs:
              /usr/local/bin/pip install -U pip setuptools wheel
              /usr/local/bin/pip install -r dev_requirements.txt
              /usr/local/bin/python3.9 setup.py build_ext --inplace
-             pytest
+             python -m pytest
              python3.9 setup.py bdist_wheel

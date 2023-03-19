@@ -45,7 +45,7 @@ jobs:
            pip install -U pip setuptools wheel
            pip install -r dev_requirements.txt
            python setup.py build_ext --inplace
-           pytest
+           python -m pytest
        - name: build and install the wheel
          run: |
            python setup.py bdist_wheel
