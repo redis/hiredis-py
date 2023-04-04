@@ -3,6 +3,7 @@
 #include <assert.h>
 
 static void Reader_dealloc(hiredis_ReaderObject *self);
+static int Reader_traverse(hiredis_ReaderObject *self, visitproc visit, void *arg);
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds);
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args);
@@ -44,9 +45,9 @@ PyTypeObject hiredis_ReaderType = {
     0,                            /*tp_getattro*/
     0,                            /*tp_setattro*/
     0,                            /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     "Hiredis protocol reader",    /*tp_doc */
-    0,                            /*tp_traverse */
+    (traverseproc)Reader_traverse,/*tp_traverse */
     0,                            /*tp_clear */
     0,                            /*tp_richcompare */
     0,                            /*tp_weaklistoffset */
@@ -209,14 +210,22 @@ redisReplyObjectFunctions hiredis_ObjectFunctions = {
 };
 
 static void Reader_dealloc(hiredis_ReaderObject *self) {
+    PyObject_GC_UnTrack(self);
     // we don't need to free self->encoding as the buffer is managed by Python
     // https://docs.python.org/3/c-api/arg.html#strings-and-buffers
     redisReaderFree(self->reader);
-    Py_XDECREF(self->protocolErrorClass);
-    Py_XDECREF(self->replyErrorClass);
-    Py_XDECREF(self->notEnoughDataObject);
+    Py_CLEAR(self->protocolErrorClass);
+    Py_CLEAR(self->replyErrorClass);
+    Py_CLEAR(self->notEnoughDataObject);
 
     ((PyObject *)self)->ob_type->tp_free((PyObject*)self);
+}
+
+static int Reader_traverse(hiredis_ReaderObject *self, visitproc visit, void *arg) {
+    Py_VISIT(self->protocolErrorClass);
+    Py_VISIT(self->replyErrorClass);
+    Py_VISIT(self->notEnoughDataObject);
+    return 0;
 }
 
 static int _Reader_set_exception(PyObject **target, PyObject *value) {
