@@ -53,7 +53,7 @@ jobs:
            name: ${{matrix.os}}-wheels
            path: ./wheelhouse/*.whl
 
-   build_sdist:
+    build_sdist:
      name: Build source dist
      runs-on: ubuntu-20.04
      steps:
@@ -71,45 +71,45 @@ jobs:
            name: source-dist
            path: ./dist/*.tar.gz
 
-   publish:
-    name: Pypi publish
-    if: ${{inputs.release == true}}
-    # needs: ['build_wheels', 'build_sdist']
-    needs: ['build_sdist']
-    runs-on: ubuntu-latest
-    steps:
-        - uses: actions/setup-python@v4
-          with:
-            python-version: 3.9
-        - name: Install tools
-          run: |
-            pip install twine wheel
-        - uses: actions/download-artifact@v3
-          with:
-            name: ubuntu-20.04-wheels
-            path: artifacts/linux
-        - uses: actions/download-artifact@v3
-          with:
-            name: windows-2019-wheels
-            path: artifacts/windows
-        - uses: actions/download-artifact@v3
-          with:
-            name: macos-10.15-wheels
-            path: artifacts/macos
-        - uses: actions/download-artifact@v3
-          with:
-            name: source-dist
-            path: artifacts/sdist
-        - name: unify wheel structure
-          run: |
-           mkdir dist
-           cp -R artifacts/windows/* dist
-           cp -R artifacts/linux/* dist
-           cp -R artifacts/macos/* dist
-           cp -R artifacts/sdist/* dist
+    publish:
+     name: Pypi publish
+     if: ${{inputs.release == true}}
+     # needs: ['build_wheels', 'build_sdist']
+     needs: ['build_sdist']
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/setup-python@v4
+         with:
+           python-version: 3.9
+       - name: Install tools
+         run: |
+           pip install twine wheel
+       - uses: actions/download-artifact@v3
+         with:
+           name: ubuntu-20.04-wheels
+           path: artifacts/linux
+       - uses: actions/download-artifact@v3
+         with:
+           name: windows-2019-wheels
+           path: artifacts/windows
+       - uses: actions/download-artifact@v3
+         with:
+           name: macos-10.15-wheels
+           path: artifacts/macos
+       - uses: actions/download-artifact@v3
+         with:
+           name: source-dist
+           path: artifacts/sdist
+       - name: unify wheel structure
+         run: |
+          mkdir dist
+          cp -R artifacts/windows/* dist
+          cp -R artifacts/linux/* dist
+          cp -R artifacts/macos/* dist
+          cp -R artifacts/sdist/* dist
 
-        - name: Publish to Pypi
-          uses: pypa/gh-action-pypi-publish@release/v1
-          with:
-            user: __token__
-            password: ${{ secrets.PYPI_API_TOKEN }}
+       - name: Publish to Pypi
+         uses: pypa/gh-action-pypi-publish@release/v1
+         with:
+           user: __token__
+           password: ${{ secrets.PYPI_API_TOKEN }}
