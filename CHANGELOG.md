@@ -1,4 +1,5 @@
 * Implement pack_command that serializes redis-py command to the RESP bytes object.
+* Implement garbage collection support in Reader (#162)
 
 ### 2.1.1 (2023-10-01)
 
