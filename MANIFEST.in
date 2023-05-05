@@ -4,7 +4,6 @@ include README.md
 include src/*.[ch]
 include vendor/hiredis/COPYING
 include vendor/hiredis/*.[ch]
-include test.py
-graft test
+graft tests
 global-exclude __pycache__
 global-exclude *.py[co]
