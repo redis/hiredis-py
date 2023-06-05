@@ -22,7 +22,7 @@ Building this repository requires a recursive checkout of submodules, and buildi
 ```bash
 git clone --recursse-submodules https://github.com/redis/hiredis-py
 python setup.py build_ext --inplace
-pytest
+python -m pytest
 ```
 
 ### Requirements
