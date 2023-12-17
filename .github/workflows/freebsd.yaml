@@ -20,17 +20,17 @@ permissions:
 jobs:
 
    run-tests:
-     runs-on: macos-12
+     runs-on: ubuntu-latest
      timeout-minutes: 30
      env:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
      name: Python ${{ matrix.python-version }} FreeBSD
      steps:
-       - uses: actions/checkout@v3
+       - uses: actions/checkout@v4
          with:
            submodules: recursive
        - name: build and test
-         uses: vmactions/freebsd-vm@v0
+         uses: vmactions/freebsd-vm@v1
          with:
            envs: 'ACTIONS_ALLOW_UNSECURE_COMMANDS'
            usesh: true
