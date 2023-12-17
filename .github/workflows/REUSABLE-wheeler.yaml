@@ -89,7 +89,7 @@ jobs:
            path: artifacts/windows
        - uses: actions/download-artifact@v3
          with:
-           name: macos-10.15-wheels
+           name: macos-latest-wheels
            path: artifacts/macos
        - uses: actions/download-artifact@v3
          with:
