@@ -60,7 +60,7 @@ setup(
     author="Jan-Erik Rediger, Pieter Noordhuis",
     author_email="janerik@fnordig.de, pcnoordhuis@gmail.com",
     keywords=["Redis"],
-    license="BSD",
+    license="MIT",
     packages=["hiredis"],
     package_data={"hiredis": ["hiredis.pyi", "py.typed"]},
     ext_modules=[ext],
@@ -72,7 +72,7 @@ setup(
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: MIT License',
         'Operating System :: MacOS',
         'Operating System :: POSIX',
         'Programming Language :: C',
