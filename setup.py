@@ -64,7 +64,7 @@ setup(
     packages=["hiredis"],
     package_data={"hiredis": ["hiredis.pyi", "py.typed"]},
     ext_modules=[ext],
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     project_urls={
         "Changes": "https://github.com/redis/hiredis-py/releases",
         "Issue tracker": "https://github.com/redis/hiredis-py/issues",
