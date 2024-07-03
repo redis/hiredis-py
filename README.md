@@ -42,7 +42,7 @@ python -m pytest
 
 ### Requirements
 
-hiredis-py requires **Python 3.7+**.
+hiredis-py requires **Python 3.8+**.
 
 Make sure Python development headers are available when installing hiredis-py.
 On Ubuntu/Debian systems, install them with `apt-get install python3-dev`.
