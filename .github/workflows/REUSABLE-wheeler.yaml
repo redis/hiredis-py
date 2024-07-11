@@ -21,7 +21,7 @@ jobs:
      runs-on: ${{ matrix.os }}
      strategy:
        matrix:
-         os: [ubuntu-20.04, windows-2019, macos-latest]
+         os: [ubuntu-20.04, windows-latest, macos-latest]
      env:
        CIBW_ARCHS_MACOS: "x86_64 universal2 arm64"
        MACOSX_DEPLOYMENT_TARGET: "10.15"
@@ -37,7 +37,7 @@ jobs:
            platforms: all
 
        - name: Build wheels
-         uses: pypa/cibuildwheel@v2.16.2
+         uses: pypa/cibuildwheel@v2.19.2
          env:
            # configure cibuildwheel to build native archs ('auto'), and some
            # emulated ones
@@ -85,7 +85,7 @@ jobs:
            path: artifacts/linux
        - uses: actions/download-artifact@v3
          with:
-           name: windows-2019-wheels
+           name: windows-latest-wheels
            path: artifacts/windows
        - uses: actions/download-artifact@v3
          with:
