@@ -136,7 +136,11 @@ def test_none(reader):
 
 def test_set(reader):
   reader.feed(b"~3\r\n+tangerine\r\n_\r\n,10.5\r\n")
-  assert {b"tangerine", None, 10.5} == reader.gets()
+  assert [b"tangerine", None, 10.5] == reader.gets()
+
+def test_set_with_nested_dict(reader):
+  reader.feed(b"~2\r\n+tangerine\r\n%1\r\n+a\r\n:1\r\n")
+  assert [b"tangerine", {b"a": 1}] == reader.gets()
 
 def test_dict(reader):
   reader.feed(b"%2\r\n+radius\r\n,4.5\r\n+diameter\r\n:9\r\n")

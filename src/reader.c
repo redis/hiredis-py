@@ -82,10 +82,6 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
                     PyDict_SetItem(parent, last_key, obj);
                 }
                 break;
-            case REDIS_REPLY_SET:
-                assert(PyAnySet_CheckExact(parent));
-                PySet_Add(parent, obj);
-                break;
             default:
                 assert(PyList_CheckExact(parent));
                 PyList_SET_ITEM(parent, task->idx, obj);
@@ -161,9 +157,6 @@ static void *createArrayObject(const redisReadTask *task, size_t elements) {
     switch (task->type) {
         case REDIS_REPLY_MAP:
             obj = PyDict_New();
-            break;
-        case REDIS_REPLY_SET:
-            obj = PySet_New(NULL);
             break;
         default:
             obj = PyList_New(elements);
