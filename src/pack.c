@@ -16,7 +16,7 @@ extern sds sdscpylen(sds s, const char *t, size_t len);
 extern sds sdsnewlen(const void *init, size_t initlen);
 #endif
 
-#include <hiredis/sdsalloc.h>
+#include <hiredis/alloc.h>
 
 PyObject *
 pack_command(PyObject *cmd)
@@ -32,7 +32,7 @@ pack_command(PyObject *cmd)
     }
 
     Py_ssize_t tokens_number = PyTuple_Size(cmd);
-    sds *tokens = s_malloc(sizeof(sds) * tokens_number);
+    sds *tokens = hi_malloc(sizeof(sds) * tokens_number);
     if (tokens == NULL)
     {
         return PyErr_NoMemory();

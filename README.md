@@ -35,7 +35,7 @@ pip install hiredis
 Building this repository requires a recursive checkout of submodules, and building hiredis. The following example shows how to clone, compile, and run tests. Please note - you will need the gcc installed.
 
 ```bash
-git clone --recursse-submodules https://github.com/redis/hiredis-py
+git clone --recurse-submodules https://github.com/redis/hiredis-py
 python setup.py build_ext --inplace
 python -m pytest
 ```
