@@ -1,6 +1,50 @@
-* Implement pack_command that serializes redis-py command to the RESP bytes object.
-* Implement garbage collection support in Reader (#162)
-* Python 3.12
+### 3.0.0 (2024-07-19)
+
+* Return Redis sets as Python lists (#189)
+
+### 2.4.0 (2024-07-19)
+
+* Fix small typo (#192)
+* Quote version for Python setup action in CI (#191)
+* Fix building the wheel for windows (#190)
+* pack: Replace sdsalloc.h with alloc.h (#159)
+* Bump black from 22.3.0 to 24.3.0 (#185)
+* Removing python 3.7 trove (#181)
+* Badge for latest released on Pypi (#182)
+* Sync license in metadata with LICENSE file (#183)
+
+### 2.3.2 (2023-12-17)
+
+* Fixing wheel artifact find for OSX builds (#180)
+
+### 2.3.1 (2023-12-17)
+
+* Builder for wheels (#179)
+* Restoring FreeBSD to CI (#178)
+* Added Python 3.12 to test matrix and classifiers (#174)
+* Linking to Redis learning resources (#173)
+* Updating client license to clear, MIT (#170)
+* Integrating spellcheck into CI (#169)
+
+### 2.3.0 (2023-07-12)
+
+* hiredis 1.2.0 support, versioning as 2.3.0 (#168)
+* Fix including tests in sdist (#166)
+* Use absolute imports and remove init.py from tests. (#160)
+
+### 2.2.3 (2023-05-04)
+
+* Implement garbage collection support in Reader (#162, #163)
+
+### 2.2.2 (2023-02-13)
+
+* Reverting gcc -BSymbolic due to symbol collisions (#156)
+
+### 2.2.1 (2023-02-02)
+
+* Add pack_command to support writing via hiredis-py (#147)
+* Fixing broken windows builds on python < 3.8 (#151)
+* CI for FreeBSD (#148)
 
 ### 2.1.1 (2023-10-01)
 
