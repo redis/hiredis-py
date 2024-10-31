@@ -80,6 +80,7 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
                     PyObject *last_item = PyObject_CallMethod(parent, "popitem", NULL);
                     PyObject *last_key = PyTuple_GetItem(last_item, 0);
                     PyDict_SetItem(parent, last_key, obj);
+                    Py_DECREF(obj);
                 }
                 break;
             default:
