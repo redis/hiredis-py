@@ -40,6 +40,9 @@ jobs:
            python-version: ${{ matrix.python-version }}
            cache: 'pip'
            cache-dependency-path: dev_requirements.txt
+       - name: Install memray deps
+         run: |
+           sudo apt-get install build-essential python3-dev libdebuginfod-dev libunwind-dev liblz4-dev -y -qq
        - name: run tests
          run: |
            pip install -U pip setuptools wheel
