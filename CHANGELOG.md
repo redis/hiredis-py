@@ -1,7 +1,9 @@
-* Implement pack_command that serializes redis-py command to the RESP bytes object.
-* Implement garbage collection support in Reader (#162)
-* Python 3.12
-* Python 3.13 compatibility
+# Hiredis-py Changelog
+
+Since [v2.2.1](https://github.com/redis/hiredis-py/releases/tag/v2.2.1) we track changelog using [GitHub releases](https://github.com/redis/hiredis-py/releases).
+Below you can find the changelog for all versions prior to that.
+
+-----------------
 
 ### 2.1.1 (2023-10-01)
 
