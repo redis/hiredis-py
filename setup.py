@@ -7,6 +7,7 @@ except ImportError:
 import importlib
 import glob
 import io
+import os
 import sys
 
 
@@ -17,16 +18,39 @@ def version():
     return module.__version__
 
 
+def is_hiredis_bundled():
+    hiredis_submodule = 'vendor/hiredis'
+    if (os.path.exists(hiredis_submodule)
+            and not os.path.isfile(hiredis_submodule)):
+        return not os.listdir()
+    return False
+
+
+def get_hiredis_bundled_sources():
+    hiredis_sources = ("alloc", "async", "hiredis", "net", "read",
+                       "sds", "sockcompat")
+    if is_hiredis_bundled():
+        return ["vendor/hiredis/%s.c" % src for src in hiredis_sources]
+    return []
+
+
+if not is_hiredis_bundled():
+    print('the bundled hiredis sources were not found;'
+          ' system hiredis will be used\n'
+          'to use the bundled hiredis sources instead,'
+          ' run "git submodule update --init"')
+
+
 def get_sources():
-    hiredis_sources = ("alloc", "async", "hiredis", "net", "read", "sds", "sockcompat")
-    return sorted(glob.glob("src/*.c") + ["vendor/hiredis/%s.c" % src for src in hiredis_sources])
+    return sorted(glob.glob("src/*.c") + get_hiredis_bundled_sources())
 
 
 def get_linker_args():
     if 'win32' in sys.platform or 'darwin' in sys.platform:
         return []
     else:
-        return ["-Wl,-Bsymbolic", ]
+        return ["-Wl,-Bsymbolic", ] + \
+            ['-lhiredis'] if not is_hiredis_bundled() else []
 
 
 def get_compiler_args():
