@@ -3,7 +3,7 @@ flake8==4.0.1
 isort==5.10.1
 pytest>=7.2.0
 memray==1.17.1 ; sys_platform != 'win32'
-pytest-memray==1.7.0
+pytest-memray==1.7.0 ; sys_platform != 'win32'
 setuptools
 tox==3.24.4
 vulture>=2.3.0
