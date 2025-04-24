@@ -2,8 +2,8 @@ black==24.3.0
 flake8==4.0.1
 isort==5.10.1
 pytest>=7.2.0
-memray==1.17.1 ; sys_platform not in ('win32', 'freebsd') and platform_python_implementation != 'PyPy'
-pytest-memray==1.7.0 ; sys_platform not in ('win32', 'freebsd') and platform_python_implementation != 'PyPy'
+memray==1.17.1 ; sys_platform != 'win32' and platform_python_implementation != 'PyPy'
+pytest-memray==1.7.0 ; sys_platform != 'win32' and platform_python_implementation != 'PyPy'
 setuptools
 tox==3.24.4
 vulture>=2.3.0
