@@ -146,6 +146,45 @@ def test_dict(reader):
   reader.feed(b"%2\r\n+radius\r\n,4.5\r\n+diameter\r\n:9\r\n")
   assert {b"radius": 4.5, b"diameter": 9} == reader.gets()
 
+@pytest.mark.limit_memory("50 KB")
+def test_dict_memory_leaks(reader):
+  data = (
+    b"%5\r\n"
+    b"+radius\r\n,4.5\r\n"
+    b"+diameter\r\n:9\r\n"
+    b"+nested_map\r\n"
+    b"%2\r\n"
+    b"+key1\r\n+value1\r\n"
+    b"+key2\r\n:42\r\n"
+    b"+nested_array\r\n"
+    b"*2\r\n"
+    b"+item1\r\n"
+    b"+item2\r\n"
+    b"+nested_set\r\n"
+    b"~2\r\n"
+    b"+element1\r\n"
+    b"+element2\r\n"
+  )
+  for i in range(10000):
+    reader.feed(data)
+    res = reader.gets()
+    assert {
+             b"radius": 4.5,
+             b"diameter": 9,
+             b"nested_map": {b"key1": b"value1", b"key2": 42},
+             b"nested_array": [b"item1", b"item2"],
+             b"nested_set": [b"element1", b"element2"],
+           } == res
+
+def test_dict_with_unhashable_key(reader):
+    reader.feed(
+      b"%1\r\n"
+      b"%1\r\n+key1\r\n+value1\r\n"
+      b":9\r\n"
+    )
+    with pytest.raises(TypeError):
+      reader.gets()
+
 def test_vector(reader):
   reader.feed(b">4\r\n+pubsub\r\n+message\r\n+channel\r\n+message\r\n")
   assert [b"pubsub", b"message", b"channel", b"message"] == reader.gets()

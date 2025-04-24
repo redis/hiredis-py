@@ -74,12 +74,19 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
             case REDIS_REPLY_MAP:
                 if (task->idx % 2 == 0) {
                     /* Set a temporary item to save the object as a key. */
-                    PyDict_SetItem(parent, obj, Py_None);
+                    int res = PyDict_SetItem(parent, obj, Py_None);
+                    Py_DECREF(obj);
+
+                    if (res == -1) {
+                        return NULL;
+                    }
                 } else {
                     /* Pop the temporary item and set proper key and value. */
                     PyObject *last_item = PyObject_CallMethod(parent, "popitem", NULL);
                     PyObject *last_key = PyTuple_GetItem(last_item, 0);
                     PyDict_SetItem(parent, last_key, obj);
+                    Py_DECREF(last_item);
+                    Py_DECREF(obj);
                 }
                 break;
             default:
@@ -359,8 +366,6 @@ error:
 
 static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
     PyObject *obj;
-    PyObject *err;
-    char *errstr;
 
     self->shouldDecode = 1;
     if (!PyArg_ParseTuple(args, "|i", &self->shouldDecode)) {
@@ -368,9 +373,17 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
     }
 
     if (redisReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
-        errstr = redisReaderGetError(self->reader);
-        /* protocolErrorClass might be a callable. call it, then use it's type */
-        err = createError(self->protocolErrorClass, errstr, strlen(errstr));
+        PyObject *err = NULL;
+        char *errstr = NULL;
+
+        // Checking if there is no error during the call to redisReaderGetReply
+        // to avoid getting a SystemError.
+        if (PyErr_Occurred() == NULL) {
+            errstr = redisReaderGetError(self->reader);
+            /* protocolErrorClass might be a callable. call it, then use it's type */
+            err = createError(self->protocolErrorClass, errstr, strlen(errstr));
+        }
+
         if (err != NULL) {
             obj = PyObject_Type(err);
             PyErr_SetString(obj, errstr);
