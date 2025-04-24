@@ -44,5 +44,5 @@ jobs:
              sed '5,6d' dev_requirements.txt > dev_requirements_without_memray.txt
              /usr/local/bin/pip install -r dev_requirements_without_memray.txt
              /usr/local/bin/python3.9 setup.py build_ext --inplace
-             python -m pytest
-             python3.9 setup.py bdist_wheel
+             /usr/local/bin/python3.9 -m pytest
+             /usr/local/bin/python3.9 setup.py bdist_wheel
