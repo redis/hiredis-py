@@ -59,6 +59,11 @@ PyMODINIT_FUNC PyInit_hiredis(void)
         return NULL;
     }
 
+    PushNotificationType.tp_base = &PyList_Type;
+    if (PyType_Ready(&PushNotificationType) < 0) {
+        return NULL;
+    }
+
     mod_hiredis = PyModule_Create(&hiredis_ModuleDef);
 
     /* Setup custom exceptions */
@@ -78,6 +83,9 @@ PyMODINIT_FUNC PyInit_hiredis(void)
 
     Py_INCREF(&hiredis_ReaderType);
     PyModule_AddObject(mod_hiredis, "Reader", (PyObject *)&hiredis_ReaderType);
+
+    Py_INCREF(&PushNotificationType);
+    PyModule_AddObject(mod_hiredis, "PushNotification", (PyObject *)&PushNotificationType);
 
     return mod_hiredis;
 }

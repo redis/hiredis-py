@@ -23,7 +23,12 @@ typedef struct {
     } error;
 } hiredis_ReaderObject;
 
+typedef struct {
+    PyListObject list;
+} PushNotificationObject;
+
 extern PyTypeObject hiredis_ReaderType;
+extern PyTypeObject PushNotificationType;
 extern redisReplyObjectFunctions hiredis_ObjectFunctions;
 
 #endif
