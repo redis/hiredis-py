@@ -41,7 +41,8 @@ jobs:
              curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py
              python3.9 get-pip.py
              /usr/local/bin/pip install -U pip setuptools wheel
-             /usr/local/bin/pip install -r dev_requirements.txt
+             sed '5,6d' dev_requirements.txt > dev_requirements_without_memray.txt
+             /usr/local/bin/pip install -r dev_requirements_without_memray.txt
              /usr/local/bin/python3.9 setup.py build_ext --inplace
-             python -m pytest
-             python3.9 setup.py bdist_wheel
+             /usr/local/bin/python3.9 -m pytest
+             /usr/local/bin/python3.9 setup.py bdist_wheel
