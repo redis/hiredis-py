@@ -221,7 +221,6 @@ static int PushNotificationType_init(PushNotificationObject *self, PyObject *arg
     return PyList_Type.tp_init((PyObject *)self, args, kwds);
 }
 
-/* Create a new instance of PushNotificationType with preallocated number of elements */
 static PyObject* PushNotificationType_New(Py_ssize_t size) {
     /* Check for negative size */
     if (size < 0) {
@@ -240,28 +239,8 @@ static PyObject* PushNotificationType_New(Py_ssize_t size) {
         return NULL;
     }
 
-    /* Cast to PyListObject to access its fields */
-    PyListObject* op = (PyListObject*)obj;
-
-    /* Allocate memory for the list items if size > 0 */
-    if (size > 0) {
-        size_t nbytes = (size_t)size * sizeof(PyObject*);
-        op->ob_item = (PyObject**)PyMem_Malloc(nbytes);
-        if (op->ob_item == NULL) {
-            Py_DECREF(obj);
-            return PyErr_NoMemory();
-        }
-        /* Initialize memory to zeros */
-        memset(op->ob_item, 0, nbytes);
-    }
-
-    /* Set the size and allocated fields */
-#if PY_VERSION_HEX >= 0x03090000
-    Py_SET_SIZE(op, size);
-#else
-    Py_SIZE(op) = size;
-#endif
-    op->allocated = size;
+    // Simple solution to preallocate the list that works for both CPython and PyPy
+    PyList_SetSlice(obj, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, PyList_New(size));
 
     return obj;
 }
