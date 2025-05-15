@@ -233,14 +233,21 @@ static PyObject* PushNotificationType_New(Py_ssize_t size) {
         return PyErr_NoMemory();
     }
 
-    /* Create a new instance of PushNotificationType */
+#ifdef PYPY_VERSION
+    PyObject* obj = PyObject_CallObject((PyObject *) &PushNotificationType, NULL);    
+#else
     PyObject* obj = PyType_GenericNew(&PushNotificationType, NULL, NULL);
+#endif
     if (obj == NULL) {
         return NULL;
     }
 
-    // Simple solution to preallocate the list that works for both CPython and PyPy
-    PyList_SetSlice(obj, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, PyList_New(size));
+   int res = PyList_SetSlice(obj, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, PyList_New(size));
+
+   if (res == -1) {
+       Py_DECREF(obj);
+       return NULL;
+   }
 
     return obj;
 }
