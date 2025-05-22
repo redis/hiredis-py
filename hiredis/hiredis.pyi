@@ -13,6 +13,10 @@ class ReplyError(HiredisError):
     ...
 
 
+class PushNotification(list):
+    ...
+
+
 class Reader:
     def __init__(
         self,

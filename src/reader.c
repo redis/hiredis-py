@@ -1,6 +1,7 @@
 #include "reader.h"
 
 #include <assert.h>
+#include <Python.h>
 
 static void Reader_dealloc(hiredis_ReaderObject *self);
 static int Reader_traverse(hiredis_ReaderObject *self, visitproc visit, void *arg);
@@ -13,6 +14,10 @@ static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self);
 static PyObject *Reader_len(hiredis_ReaderObject *self);
 static PyObject *Reader_has_data(hiredis_ReaderObject *self);
 static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds);
+
+static int PushNotificationType_init(PushNotificationObject *self, PyObject *args, PyObject *kwds);
+/* Create a new instance of PushNotificationType with preallocated number of elements */
+static PyObject* PushNotificationType_New(Py_ssize_t size);
 
 static PyMethodDef hiredis_ReaderMethods[] = {
     {"feed", (PyCFunction)Reader_feed, METH_VARARGS, NULL },
@@ -64,6 +69,16 @@ PyTypeObject hiredis_ReaderType = {
     (initproc)Reader_init,        /*tp_init */
     0,                            /*tp_alloc */
     Reader_new,                   /*tp_new */
+};
+
+PyTypeObject PushNotificationType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = MOD_HIREDIS ".PushNotification",
+    .tp_basicsize = sizeof(PushNotificationObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_doc = "Redis PUSH notification type",
+    .tp_init = (initproc) PushNotificationType_init,
 };
 
 static void *tryParentize(const redisReadTask *task, PyObject *obj) {
@@ -165,6 +180,9 @@ static void *createArrayObject(const redisReadTask *task, size_t elements) {
         case REDIS_REPLY_MAP:
             obj = PyDict_New();
             break;
+        case REDIS_REPLY_PUSH:
+            obj = PushNotificationType_New(elements);
+            break;
         default:
             obj = PyList_New(elements);
     }
@@ -197,6 +215,41 @@ static void *createBoolObject(const redisReadTask *task, int bval) {
 
 static void freeObject(void *obj) {
     Py_XDECREF(obj);
+}
+
+static int PushNotificationType_init(PushNotificationObject *self, PyObject *args, PyObject *kwds) {
+    return PyList_Type.tp_init((PyObject *)self, args, kwds);
+}
+
+static PyObject* PushNotificationType_New(Py_ssize_t size) {
+    /* Check for negative size */
+    if (size < 0) {
+        PyErr_SetString(PyExc_SystemError, "negative list size");
+        return NULL;
+    }
+
+    /* Check for potential overflow */
+    if ((size_t)size > PY_SSIZE_T_MAX / sizeof(PyObject*)) {
+        return PyErr_NoMemory();
+    }
+
+#ifdef PYPY_VERSION
+    PyObject* obj = PyObject_CallObject((PyObject *) &PushNotificationType, NULL);    
+#else
+    PyObject* obj = PyType_GenericNew(&PushNotificationType, NULL, NULL);
+#endif
+    if (obj == NULL) {
+        return NULL;
+    }
+
+   int res = PyList_SetSlice(obj, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, PyList_New(size));
+
+   if (res == -1) {
+       Py_DECREF(obj);
+       return NULL;
+   }
+
+    return obj;
 }
 
 redisReplyObjectFunctions hiredis_ObjectFunctions = {

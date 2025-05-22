@@ -185,9 +185,11 @@ def test_dict_with_unhashable_key(reader):
     with pytest.raises(TypeError):
       reader.gets()
 
-def test_vector(reader):
+def test_vector(reader):  
   reader.feed(b">4\r\n+pubsub\r\n+message\r\n+channel\r\n+message\r\n")
-  assert [b"pubsub", b"message", b"channel", b"message"] == reader.gets()
+  result = reader.gets()
+  assert isinstance(result, hiredis.PushNotification)
+  assert [b"pubsub", b"message", b"channel", b"message"] == result
 
 def test_verbatim_string(reader):
   value = b"text"
