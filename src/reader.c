@@ -105,7 +105,7 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
                 }
                 break;
             default:
-                assert(PyList_CheckExact(parent));
+                assert(PyList_Check(parent));
                 PyList_SET_ITEM(parent, task->idx, obj);
         }
     }
