@@ -4,17 +4,14 @@ try:
     from setuptools import setup, Extension
 except ImportError:
     from distutils.core import setup, Extension
-import importlib
+import runpy
 import glob
 import io
 import sys
 
 
 def version():
-    loader = importlib.machinery.SourceFileLoader(
-        "hiredis.version", "hiredis/version.py")
-    module = loader.load_module()
-    return module.__version__
+    return runpy.run_path("hiredis/version.py")["__version__"]
 
 
 def get_sources():
