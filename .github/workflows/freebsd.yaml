@@ -36,13 +36,13 @@ jobs:
            usesh: true
            sync: rsync
            copyback: false
-           prepare: pkg install -y bash curl python39
+           prepare: pkg install -y bash curl python311
            run: |
              curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-             python3.9 get-pip.py
+             python3.11 get-pip.py
              /usr/local/bin/pip install -U pip setuptools wheel
              sed '5,6d' dev_requirements.txt > dev_requirements_without_memray.txt
              /usr/local/bin/pip install -r dev_requirements_without_memray.txt
-             /usr/local/bin/python3.9 setup.py build_ext --inplace
-             /usr/local/bin/python3.9 -m pytest
-             /usr/local/bin/python3.9 setup.py bdist_wheel
+             /usr/local/bin/python3.11 setup.py build_ext --inplace
+             /usr/local/bin/python3.11 -m pytest
+             /usr/local/bin/python3.11 setup.py bdist_wheel
