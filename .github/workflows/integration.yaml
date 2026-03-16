@@ -32,7 +32,7 @@ jobs:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
      name: Python ${{ matrix.python-version }} ${{matrix.os}}
      steps:
-       - uses: actions/checkout@v3
+       - uses: actions/checkout@v6
          with:
            submodules: recursive
        - uses: actions/setup-python@v6
