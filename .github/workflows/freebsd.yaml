@@ -26,7 +26,7 @@ jobs:
        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
      name: Python ${{ matrix.python-version }} FreeBSD
      steps:
-       - uses: actions/checkout@v4
+       - uses: actions/checkout@v6
          with:
            submodules: recursive
        - name: build and test
