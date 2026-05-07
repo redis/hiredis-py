@@ -50,7 +50,7 @@ jobs:
          env:
            CIBW_ARCHS_WINDOWS: ARM64
 
-       - uses: actions/upload-artifact@v4
+       - uses: actions/upload-artifact@v5
          with:
            name: ${{matrix.os}}-wheels
            path: ./wheelhouse/*.whl
@@ -59,7 +59,7 @@ jobs:
      name: Build source dist
      runs-on: ubuntu-latest
      steps:
-       - uses: actions/setup-python@v5
+       - uses: actions/setup-python@v6
          with:
            python-version: '3.10'
        - uses: actions/checkout@v6
@@ -68,7 +68,7 @@ jobs:
        - name: Build sdist
          run: |
            python3 setup.py sdist
-       - uses: actions/upload-artifact@v4
+       - uses: actions/upload-artifact@v5
          with:
            name: source-dist
            path: ./dist/*.tar.gz
@@ -79,29 +79,29 @@ jobs:
      needs: ['build_wheels', 'build_sdist']
      runs-on: ubuntu-latest
      steps:
-       - uses: actions/setup-python@v5
+       - uses: actions/setup-python@v6
          with:
            python-version: '3.10'
        - name: Install tools
          run: |
            pip install twine wheel
-       - uses: actions/download-artifact@v4
+       - uses: actions/download-artifact@v5
          with:
            name: ubuntu-latest-wheels
            path: artifacts/linux
-       - uses: actions/download-artifact@v4
+       - uses: actions/download-artifact@v5
          with:
            name: windows-latest-wheels
            path: artifacts/windows
-       - uses: actions/download-artifact@v4
+       - uses: actions/download-artifact@v5
          with:
            name: windows-11-arm-wheels
            path: artifacts/windows-arm64
-       - uses: actions/download-artifact@v4
+       - uses: actions/download-artifact@v5
          with:
            name: macos-latest-wheels
            path: artifacts/macos
-       - uses: actions/download-artifact@v4
+       - uses: actions/download-artifact@v5
          with:
            name: source-dist
            path: artifacts/sdist
