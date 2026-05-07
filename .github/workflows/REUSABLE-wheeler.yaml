@@ -21,7 +21,7 @@ jobs:
      runs-on: ${{ matrix.os }}
      strategy:
        matrix:
-         os: [ubuntu-latest, windows-latest, macos-latest]
+         os: [ubuntu-latest, windows-latest, windows-11-arm, macos-latest]
      env:
        CIBW_ARCHS_MACOS: "x86_64 universal2 arm64"
        MACOSX_DEPLOYMENT_TARGET: "10.15"
@@ -37,11 +37,18 @@ jobs:
            platforms: all
 
        - name: Build wheels
+         if: matrix.os != 'windows-11-arm'
          uses: pypa/cibuildwheel@v3.2.0
          env:
            # configure cibuildwheel to build native archs ('auto'), and some
            # emulated ones
            CIBW_ARCHS_LINUX: auto aarch64 ppc64le s390x
+
+       - name: Build wheels on Windows ARM64
+         if: matrix.os == 'windows-11-arm'
+         uses: pypa/cibuildwheel@v3.2.0
+         env:
+           CIBW_ARCHS_WINDOWS: ARM64
 
        - uses: actions/upload-artifact@v4
          with:
@@ -88,6 +95,10 @@ jobs:
            path: artifacts/windows
        - uses: actions/download-artifact@v4
          with:
+           name: windows-11-arm-wheels
+           path: artifacts/windows-arm64
+       - uses: actions/download-artifact@v4
+         with:
            name: macos-latest-wheels
            path: artifacts/macos
        - uses: actions/download-artifact@v4
@@ -98,6 +109,7 @@ jobs:
          run: |
           mkdir dist
           cp -R artifacts/windows/* dist
+          cp -R artifacts/windows-arm64/* dist
           cp -R artifacts/linux/* dist
           cp -R artifacts/macos/* dist
           cp -R artifacts/sdist/* dist
