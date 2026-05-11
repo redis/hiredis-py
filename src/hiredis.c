@@ -66,6 +66,13 @@ PyMODINIT_FUNC PyInit_hiredis(void)
 
     mod_hiredis = PyModule_Create(&hiredis_ModuleDef);
 
+#ifdef Py_GIL_DISABLED
+    /* Declare free-threading support. Per-Reader instance state is protected
+     * by a PyMutex; module-level state is set up here under the import lock
+     * and is read-only thereafter. */
+    PyUnstable_Module_SetGIL(mod_hiredis, Py_MOD_GIL_NOT_USED);
+#endif
+
     /* Setup custom exceptions */
     HIREDIS_STATE->HiErr_Base =
         PyErr_NewException(MOD_HIREDIS ".HiredisError", PyExc_Exception, NULL);

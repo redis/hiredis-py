@@ -408,7 +408,9 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
       goto error;
     }
 
+    HIREDIS_READER_LOCK(self);
     redisReaderFeed(self->reader, (char *)buf.buf + off, len);
+    HIREDIS_READER_UNLOCK(self);
     PyBuffer_Release(&buf);
     Py_RETURN_NONE;
 
@@ -419,11 +421,14 @@ error:
 
 static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
     PyObject *obj;
+    int shouldDecode = 1;
 
-    self->shouldDecode = 1;
-    if (!PyArg_ParseTuple(args, "|i", &self->shouldDecode)) {
+    if (!PyArg_ParseTuple(args, "|i", &shouldDecode)) {
         return NULL;
     }
+
+    HIREDIS_READER_LOCK(self);
+    self->shouldDecode = shouldDecode;
 
     if (redisReaderGetReply(self->reader, (void**)&obj) == REDIS_ERR) {
         PyObject *err = NULL;
@@ -443,23 +448,30 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
             Py_DECREF(obj);
             Py_DECREF(err);
         }
+        HIREDIS_READER_UNLOCK(self);
         return NULL;
     }
 
     if (obj == NULL) {
         Py_INCREF(self->notEnoughDataObject);
-        return self->notEnoughDataObject;
+        PyObject *ret = self->notEnoughDataObject;
+        HIREDIS_READER_UNLOCK(self);
+        return ret;
     } else {
         /* Restore error when there is one. */
         if (self->error.ptype != NULL) {
             Py_DECREF(obj);
-            PyErr_Restore(self->error.ptype, self->error.pvalue,
-                    self->error.ptraceback);
+            PyObject *ptype = self->error.ptype;
+            PyObject *pvalue = self->error.pvalue;
+            PyObject *ptraceback = self->error.ptraceback;
             self->error.ptype = NULL;
             self->error.pvalue = NULL;
             self->error.ptraceback = NULL;
+            HIREDIS_READER_UNLOCK(self);
+            PyErr_Restore(ptype, pvalue, ptraceback);
             return NULL;
         }
+        HIREDIS_READER_UNLOCK(self);
         return obj;
     }
 }
@@ -478,22 +490,33 @@ static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg) {
             return NULL;
         }
     }
+    HIREDIS_READER_LOCK(self);
     self->reader->maxbuf = maxbuf;
+    HIREDIS_READER_UNLOCK(self);
 
     Py_INCREF(Py_None);
     return Py_None;
 }
 
 static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self) {
-    return PyLong_FromSize_t(self->reader->maxbuf);
+    HIREDIS_READER_LOCK(self);
+    size_t maxbuf = self->reader->maxbuf;
+    HIREDIS_READER_UNLOCK(self);
+    return PyLong_FromSize_t(maxbuf);
 }
 
 static PyObject *Reader_len(hiredis_ReaderObject *self) {
-    return PyLong_FromSize_t(self->reader->len);
+    HIREDIS_READER_LOCK(self);
+    size_t len = self->reader->len;
+    HIREDIS_READER_UNLOCK(self);
+    return PyLong_FromSize_t(len);
 }
 
 static PyObject *Reader_has_data(hiredis_ReaderObject *self) {
-    if(self->reader->pos < self->reader->len)
+    HIREDIS_READER_LOCK(self);
+    int has = self->reader->pos < self->reader->len;
+    HIREDIS_READER_UNLOCK(self);
+    if (has)
         Py_RETURN_TRUE;
     Py_RETURN_FALSE;
 }
@@ -506,7 +529,10 @@ static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args,
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|zz", kwlist, &encoding, &errors))
         return NULL;
 
-    if(_Reader_set_encoding(self, encoding, errors) == -1)
+    HIREDIS_READER_LOCK(self);
+    int rc = _Reader_set_encoding(self, encoding, errors);
+    HIREDIS_READER_UNLOCK(self);
+    if (rc == -1)
         return NULL;
 
     Py_RETURN_NONE;
