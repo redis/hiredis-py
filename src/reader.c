@@ -296,10 +296,14 @@ static int _Reader_set_exception(PyObject **target, PyObject *value) {
     return 1;
 }
 
-static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char *errors) {
+/* Validate encoding/errors without touching reader state. Runs arbitrary
+ * Python code (codec lookup machinery) and therefore must NOT be called
+ * while holding the per-Reader PyMutex — PyMutex is non-reentrant and a
+ * codec callback could otherwise deadlock by re-entering the same Reader. */
+static int _Reader_validate_encoding(char *encoding, char *errors) {
     PyObject *codecs, *result;
 
-    if (encoding) {  // validate that the encoding exists, raises LookupError if not
+    if (encoding) {
         codecs = PyImport_ImportModule("codecs");
         if (!codecs)
             return -1;
@@ -308,12 +312,9 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         if (!result)
             return -1;
         Py_DECREF(result);
-        self->encoding = encoding;
-    } else {
-        self->encoding = NULL;
     }
 
-    if (errors) {   // validate that the error handler exists, raises LookupError if not
+    if (errors) {
         codecs = PyImport_ImportModule("codecs");
         if (!codecs)
             return -1;
@@ -322,12 +323,16 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         if (!result)
             return -1;
         Py_DECREF(result);
-        self->errors = errors;
-    } else {
-        self->errors = "strict";
     }
 
     return 0;
+}
+
+/* Apply a previously-validated encoding pair. Must be called with the
+ * per-Reader lock held when the Reader is reachable from other threads. */
+static void _Reader_apply_encoding(hiredis_ReaderObject *self, char *encoding, char *errors) {
+    self->encoding = encoding;
+    self->errors = errors ? errors : "strict";
 }
 
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
@@ -357,7 +362,12 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
         Py_INCREF(self->notEnoughDataObject);
     }
 
-    return _Reader_set_encoding(self, encoding, errors);
+    /* The Reader is not yet published to other threads in __init__, so no
+     * lock is needed around the assignment. */
+    if (_Reader_validate_encoding(encoding, errors) < 0)
+        return -1;
+    _Reader_apply_encoding(self, encoding, errors);
+    return 0;
 }
 
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -529,12 +539,15 @@ static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args,
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|zz", kwlist, &encoding, &errors))
         return NULL;
 
-    HIREDIS_READER_LOCK(self);
-    int rc = _Reader_set_encoding(self, encoding, errors);
-    HIREDIS_READER_UNLOCK(self);
-    if (rc == -1)
+    /* Validate before taking the lock: the codec lookup runs arbitrary
+     * Python code, and PyMutex is non-reentrant. Short-circuits on the
+     * first failed lookup, matching the original behavior. */
+    if (_Reader_validate_encoding(encoding, errors) < 0)
         return NULL;
 
-    Py_RETURN_NONE;
+    HIREDIS_READER_LOCK(self);
+    _Reader_apply_encoding(self, encoding, errors);
+    HIREDIS_READER_UNLOCK(self);
 
+    Py_RETURN_NONE;
 }
