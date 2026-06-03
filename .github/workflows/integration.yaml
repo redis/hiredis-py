@@ -25,7 +25,7 @@ jobs:
      strategy:
        max-parallel: 15
        matrix:
-         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14', '3.15.0-alpha.7', 'pypy-3.9', 'pypy-3.10', 'pypy-3.11']
+         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.13t', '3.14', '3.14t', '3.15.0-alpha.7', 'pypy-3.9', 'pypy-3.10', 'pypy-3.11']
          os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
          include:
            - os: 'windows-11-arm'
@@ -57,6 +57,10 @@ jobs:
            pip install -r dev_requirements.txt
            python setup.py build_ext --inplace
            python -m pytest
+       - name: verify GIL stays disabled on free-threaded builds
+         if: ${{ endsWith(matrix.python-version, 't') }}
+         run: |
+           python -c "import sys, hiredis; assert not sys._is_gil_enabled(), 'importing hiredis re-enabled the GIL'"
        - name: run tests with assertions enabled
          if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
          run: |
