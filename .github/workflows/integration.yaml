@@ -25,7 +25,7 @@ jobs:
      strategy:
        max-parallel: 15
        matrix:
-         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14', '3.15.0-alpha.7', 'pypy-3.9', 'pypy-3.10', 'pypy-3.11']
+         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14', '3.15.0-beta.1', 'pypy-3.9', 'pypy-3.10', 'pypy-3.11']
          os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
          include:
            - os: 'windows-11-arm'
@@ -48,6 +48,7 @@ jobs:
        - name: Install memray deps
          if: ${{ matrix.os == 'ubuntu-latest' }}
          run: |
+           sudo apt-get update -qq
            sudo apt-get install build-essential python3-dev libdebuginfod-dev libunwind-dev liblz4-dev -y -qq
        - name: run tests
          env:
