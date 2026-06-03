@@ -48,6 +48,7 @@ jobs:
        - name: Install memray deps
          if: ${{ matrix.os == 'ubuntu-latest' }}
          run: |
+           sudo apt-get update -qq
            sudo apt-get install build-essential python3-dev libdebuginfod-dev libunwind-dev liblz4-dev -y -qq
        - name: run tests
          env:
