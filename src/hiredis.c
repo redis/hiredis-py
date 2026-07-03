@@ -65,6 +65,13 @@ PyMODINIT_FUNC PyInit_hiredis(void)
     }
 
     mod_hiredis = PyModule_Create(&hiredis_ModuleDef);
+    if (mod_hiredis == NULL) {
+        return NULL;
+    }
+
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(mod_hiredis, Py_MOD_GIL_NOT_USED);
+#endif
 
     /* Setup custom exceptions */
     HIREDIS_STATE->HiErr_Base =
