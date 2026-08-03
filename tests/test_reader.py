@@ -1,3 +1,6 @@
+import gc
+import platform
+
 import hiredis
 import pytest
 
@@ -184,6 +187,106 @@ def test_dict_with_unhashable_key(reader):
     )
     with pytest.raises(TypeError):
       reader.gets()
+
+def test_dict_repeated_key_not_last(reader):
+  """A repeated key keeps its position, so the last value wins and no
+  placeholder leaks into the result. Compared as items() because dict equality
+  ignores order, and order is precisely what the old scheme disturbed."""
+  reader.feed(b"%3\r\n+a\r\n:1\r\n+b\r\n:2\r\n+a\r\n:3\r\n")
+  assert [(b"a", 3), (b"b", 2)] == list(reader.gets().items())
+
+def test_dict_repeated_key_interleaved(reader):
+  reader.feed(b"%4\r\n+a\r\n:1\r\n+b\r\n:2\r\n+a\r\n:3\r\n+b\r\n:4\r\n")
+  assert [(b"a", 3), (b"b", 4)] == list(reader.gets().items())
+
+def test_dict_hash_equal_keys(reader):
+  """0 and False are distinct on the wire but the same dict key."""
+  reader.feed(b"%3\r\n:0\r\n+x\r\n+k\r\n+y\r\n#f\r\n+z\r\n")
+  assert [(0, b"z"), (b"k", b"y")] == list(reader.gets().items())
+
+def test_dict_split_between_key_and_value(reader):
+  """A key is buffered until its value arrives, possibly several feeds later."""
+  reader.feed(b"%2\r\n+radius\r\n")
+  assert not reader.gets()
+  reader.feed(b",4.5\r\n+diameter\r\n")
+  assert not reader.gets()
+  reader.feed(b":9\r\n")
+  assert {b"radius": 4.5, b"diameter": 9} == reader.gets()
+
+def test_dict_protocol_error_after_key(reader):
+  # "!" is an unrecognised type byte, which aborts the parse. Error replies
+  # start with "-" and parse fine, so they would not abort anything.
+  reader.feed(b"%2\r\n+radius\r\n,4.5\r\n+diameter\r\n!bogus\r\n")
+  with pytest.raises(hiredis.ProtocolError):
+    reader.gets()
+
+@pytest.mark.skipif(platform.python_implementation() != "CPython",
+                    reason="gc.get_referents() only reports tp_traverse on CPython")
+def test_dict_pending_key_is_traversed(reader):
+  """A key waiting for its value is a reference the reader owns.
+
+  It has to be reported to the GC, or a cycle running through a buffered key
+  would never be collected. This is also what makes the release below
+  observable.
+  """
+  reader.feed(b"%1\r\n$3\r\nabc\r\n")
+  assert not reader.gets()
+  assert b"abc" in gc.get_referents(reader)
+
+@pytest.mark.skipif(platform.python_implementation() != "CPython",
+                    reason="gc.get_referents() only reports tp_traverse on CPython")
+def test_dict_protocol_error_releases_pending_key(reader):
+  """A reply aborted between a key and its value must release the buffered key.
+
+  The reader is unusable afterwards either way (hiredis latches the error), so
+  what matters is that the key it was holding is dropped rather than pinned for
+  the lifetime of the reader. Checked with the reader still alive, so this
+  covers the release in gets() and not the one in dealloc.
+  """
+  reader.feed(b"%1\r\n$3\r\nabc\r\n!bogus\r\n")
+  with pytest.raises(hiredis.ProtocolError):
+    reader.gets()
+  assert b"abc" not in gc.get_referents(reader)
+
+def _nested_unhashable_keys(depth=12):
+  """A reply that holds a deep stack of buffered keys.
+
+  A map in key position is parented, and so buffered, when its header is read
+  rather than when it completes, so every level but the outermost is on the
+  stack while the next one is parsed. The innermost map takes "+a" / ":1"; each
+  of the remaining maps needs one value, hence depth - 1 of them.
+  """
+  return b"%1\r\n" * depth + b"+a\r\n:1\r\n" + b":2\r\n" * (depth - 1)
+
+def test_dict_deeply_nested_unhashable_keys(reader):
+  """Maps in key position nest without bound; unwinding must stay clean."""
+  reader.feed(_nested_unhashable_keys())
+  with pytest.raises(TypeError):
+    reader.gets()
+
+@pytest.mark.skipif(platform.python_implementation() != "CPython",
+                    reason="gc.get_referents() only reports tp_traverse on CPython")
+def test_dict_deeply_nested_unhashable_keys_release(reader):
+  """The abort has to unwind the whole stack, not just the pair it failed on.
+
+  At depth 12 ten maps are still buffered when the failing pair is inserted, so
+  this is the case where releasing only the key in hand would strand the rest.
+  """
+  reader.feed(_nested_unhashable_keys())
+  with pytest.raises(TypeError):
+    reader.gets()
+  assert not [obj for obj in gc.get_referents(reader) if isinstance(obj, dict)]
+
+def test_dict_reused_reader(reader):
+  """Consecutive maps on one reader must not leak state between replies, and a
+  key must stay buffered across a gets() that reports not-enough-data."""
+  for i in range(3):
+    reader.feed(b"%%2\r\n+k\r\n:%d" % i)
+    assert not reader.gets()               # "k" buffered, its value incomplete
+    reader.feed(b"\r\n+j\r\n")
+    assert not reader.gets()               # "j" buffered too
+    reader.feed(b":%d\r\n" % (i * 10))
+    assert {b"k": i, b"j": i * 10} == reader.gets()
 
 def test_vector(reader):  
   reader.feed(b">4\r\n+pubsub\r\n+message\r\n+channel\r\n+message\r\n")
