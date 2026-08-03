@@ -235,6 +235,35 @@ def test_decode_error_with_surrogateescape_errors():
   r.feed(b"+\x80value\r\n")
   assert "\udc80value" == r.gets()
 
+# Spellings and aliases that codecs.lookup() resolves to the UTF-8 codec.
+@pytest.mark.parametrize("encoding", ["utf-8", "utf8", "utf_8", "UTF-8", "Utf-8",
+                                      "u8", "utf", "cp65001"])
+def test_decode_accepts_utf8_aliases(encoding):
+  snowman = b"\xe2\x98\x83"
+  r = hiredis.Reader(encoding=encoding)
+  r.feed(b"$3\r\n" + snowman + b"\r\n")
+  assert snowman.decode("utf-8") == r.gets()
+
+def test_decode_with_utf8_sig_strips_bom():
+  # An encoding built on top of UTF-8 must not be mistaken for it: utf-8-sig
+  # has a byte order mark to strip, and canonicalizes to its own name.
+  value = b"\xef\xbb\xbfhello"
+  r = hiredis.Reader(encoding="utf-8-sig")
+  r.feed(b"$%d\r\n" % len(value) + value + b"\r\n")
+  assert "hello" == r.gets()
+
+def test_set_encoding_to_utf8_from_another_encoding():
+  # The reverse of test_set_encoding_with_different_encoding: whatever the
+  # reader decided about the previous encoding has to be reconsidered here too.
+  snowman_utf8 = b"\xe2\x98\x83"
+  snowman_utf16 = b"\xff\xfe\x03&"
+  r = hiredis.Reader(encoding="utf-16")
+  r.feed(b"$4\r\n" + snowman_utf16 + b"\r\n")
+  r.feed(b"$3\r\n" + snowman_utf8 + b"\r\n")
+  assert snowman_utf16.decode("utf-16") == r.gets()
+  r.set_encoding(encoding="utf-8", errors="strict")
+  assert snowman_utf8.decode("utf-8") == r.gets()
+
 def test_invalid_encoding():
   with pytest.raises(LookupError):
     hiredis.Reader(encoding="unknown")

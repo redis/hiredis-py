@@ -118,7 +118,15 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
     if (self->encoding == NULL || !self->shouldDecode) {
         obj = PyBytes_FromStringAndSize(str, len);
     } else {
-        obj = PyUnicode_Decode(str, len, self->encoding, self->errors);
+        /* Naming the encoding here would make PyUnicode_Decode normalize that
+         * name and search its shortcut table once per string, only to end up
+         * in the decoder below. The codec was already resolved once, when it
+         * was set. */
+        if (self->isUtf8)
+            obj = PyUnicode_DecodeUTF8(str, len, self->errors);
+        else
+            obj = PyUnicode_Decode(str, len, self->encoding, self->errors);
+
         if (obj == NULL) {
             /* Store error when this is the first. */
             if (self->error.ptype == NULL)
@@ -296,6 +304,28 @@ static int _Reader_set_exception(PyObject **target, PyObject *value) {
     return 1;
 }
 
+/* Whether what codecs.lookup() returned is the UTF-8 codec. Asking the codec
+ * for its canonical name rather than matching spellings of "utf-8" by hand
+ * covers every alias, "u8" and "cp65001" included, and leaves "utf-8-sig",
+ * which canonicalizes to itself, on the general path. */
+static int _codec_is_utf8(PyObject *codecInfo) {
+    PyObject *name;
+    int isUtf8;
+
+    name = PyObject_GetAttrString(codecInfo, "name");
+    if (name == NULL) {
+        /* A codec search function may return a bare 4-tuple, which has no
+         * name to compare against. Nothing to key off, so decode generically. */
+        PyErr_Clear();
+        return 0;
+    }
+
+    isUtf8 = PyUnicode_Check(name) &&
+        PyUnicode_CompareWithASCIIString(name, "utf-8") == 0;
+    Py_DECREF(name);
+    return isUtf8;
+}
+
 static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char *errors) {
     PyObject *codecs, *result;
 
@@ -307,10 +337,12 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         Py_DECREF(codecs);
         if (!result)
             return -1;
+        self->isUtf8 = _codec_is_utf8(result);
         Py_DECREF(result);
         self->encoding = encoding;
     } else {
         self->encoding = NULL;
+        self->isUtf8 = 0;
     }
 
     if (errors) {   // validate that the error handler exists, raises LookupError if not
@@ -369,6 +401,7 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         self->reader->privdata = self;
 
         self->encoding = NULL;
+        self->isUtf8 = 0;
         self->errors = "strict";  // default to "strict" to mimic Python
         self->notEnoughDataObject = Py_False;
         self->shouldDecode = 1;

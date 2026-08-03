@@ -9,6 +9,9 @@ typedef struct {
     char *encoding;
     char *errors;
     int shouldDecode;
+    /* Whether #encoding resolves to the UTF-8 codec, decided once by
+     * _Reader_set_encoding rather than per decoded string. */
+    int isUtf8;
     PyObject *protocolErrorClass;
     PyObject *replyErrorClass;
     PyObject *notEnoughDataObject;
