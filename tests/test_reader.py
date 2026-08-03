@@ -1,3 +1,6 @@
+import gc
+import platform
+
 import hiredis
 import pytest
 
@@ -234,6 +237,42 @@ def test_decode_error_with_surrogateescape_errors():
   r= hiredis.Reader(encoding="utf-8", errors="surrogateescape")
   r.feed(b"+\x80value\r\n")
   assert "\udc80value" == r.gets()
+
+def _live_decode_errors():
+  return sum(1 for obj in gc.get_objects() if isinstance(obj, UnicodeDecodeError))
+
+# The first element fails to decode and the second never arrives, so the reply
+# is never completed and the error is never handed back by gets().
+INCOMPLETE_REPLY_WITH_BAD_ENCODING = b"*2\r\n$1\r\n\x80\r\n"
+
+@pytest.mark.skipif(platform.python_implementation() != "CPython",
+                    reason="asserts prompt release, which only refcounting guarantees")
+def test_deferred_decode_error_released_when_reader_dropped():
+  """A reader dropped part-way through a reply still owns the error it deferred."""
+  gc.collect()
+  before = _live_decode_errors()
+
+  for _ in range(10):
+    r = hiredis.Reader(encoding="utf-8")
+    r.feed(INCOMPLETE_REPLY_WITH_BAD_ENCODING)
+    assert not r.gets()
+    del r
+
+  gc.collect()
+  assert _live_decode_errors() == before
+
+@pytest.mark.skipif(platform.python_implementation() != "CPython",
+                    reason="gc.get_referents() only reports tp_traverse on CPython")
+def test_deferred_decode_error_is_traversed():
+  """The deferred error has to be reported to the GC.
+
+  A custom error class can hold a reference back to the reader, so a cycle can
+  run through it, and only tp_traverse lets the collector see that.
+  """
+  r = hiredis.Reader(encoding="utf-8")
+  r.feed(INCOMPLETE_REPLY_WITH_BAD_ENCODING)
+  assert not r.gets()
+  assert any(isinstance(obj, UnicodeDecodeError) for obj in gc.get_referents(r))
 
 def test_invalid_encoding():
   with pytest.raises(LookupError):
