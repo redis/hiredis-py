@@ -1,3 +1,6 @@
+import gc
+import platform
+
 import hiredis
 import pytest
 
@@ -190,6 +193,33 @@ def test_vector(reader):
   result = reader.gets()
   assert isinstance(result, hiredis.PushNotification)
   assert [b"pubsub", b"message", b"channel", b"message"] == result
+
+@pytest.mark.skipif(platform.python_implementation() != "CPython",
+                    reason="requires CPython reference counting")
+def test_push_notification_releases_backing_list(reader):
+  # The list a notification is sized from is only borrowed by PyList_SetSlice,
+  # so not releasing it strands one list per notification received.
+  payload = b">4\r\n+pubsub\r\n+message\r\n+channel\r\n+message\r\n"
+  iterations = 512
+
+  def live_lists():
+    return sum(1 for obj in gc.get_objects() if type(obj) is list)
+
+  for _ in range(8):
+    reader.feed(payload)
+    reader.gets()
+  gc.collect()
+  before = live_lists()
+
+  for _ in range(iterations):
+    reader.feed(payload)
+    reader.gets()
+  gc.collect()
+
+  # Leaking strands exactly one list per iteration, so the bug reads as a delta
+  # of 512 where a fixed build measures 0. The bound is left far above 0 only so
+  # that allocations elsewhere in the run cannot make this flaky.
+  assert live_lists() - before < iterations // 8
 
 def test_verbatim_string(reader):
   value = b"text"
