@@ -389,21 +389,38 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
     Py_buffer buf;
     Py_ssize_t off = 0;
     Py_ssize_t len = -1;
+    Py_ssize_t available;
 
     if (!PyArg_ParseTuple(args, "s*|nn", &buf, &off, &len)) {
         return NULL;
     }
 
-    if (len == -1) {
-      len = buf.len - off;
-    }
-
-    if (off < 0 || len < 0) {
+    if (off < 0) {
       PyErr_SetString(PyExc_ValueError, "negative input");
       goto error;
     }
 
-    if ((off + len) > buf.len) {
+    if (len == -1) {
+      if (off > buf.len) {
+        PyErr_SetString(PyExc_ValueError, "negative input");
+        goto error;
+      }
+    } else {
+      if (len < 0) {
+        PyErr_SetString(PyExc_ValueError, "negative input");
+        goto error;
+      }
+
+      if (off > buf.len) {
+        PyErr_SetString(PyExc_ValueError, "input is larger than buffer size");
+        goto error;
+      }
+    }
+
+    available = buf.len - off;
+    if (len == -1) {
+      len = available;
+    } else if (len > available) {
       PyErr_SetString(PyExc_ValueError, "input is larger than buffer size");
       goto error;
     }
