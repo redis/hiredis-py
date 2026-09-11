@@ -1,5 +1,9 @@
-import hiredis
+import sys
+
 import pytest
+
+import hiredis
+
 
 @pytest.fixture()
 def reader():
@@ -315,6 +319,14 @@ def test_invalid_offset(reader):
   data = b"+ok\r\n"
   with pytest.raises(ValueError):
     reader.feed(data, 6)
+
+def test_extreme_invalid_offset(reader):
+  with pytest.raises(ValueError, match="negative input"):
+    reader.feed(b"\x00", -sys.maxsize - 1)
+
+def test_offset_and_length_overflow(reader):
+  with pytest.raises(ValueError, match="input is larger than buffer size"):
+    reader.feed(b"\x00", sys.maxsize, 1)
 
 def test_invalid_length(reader):
   data = b"+ok\r\n"
