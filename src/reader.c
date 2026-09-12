@@ -83,6 +83,9 @@ PyTypeObject PushNotificationType = {
 
 static void *tryParentize(const redisReadTask *task, PyObject *obj) {
     PyObject *parent;
+    if (obj == NULL) {
+        return NULL;
+    }
     if (task && task->parent) {
         parent = (PyObject*)task->parent->obj;
         switch (task->parent->type) {

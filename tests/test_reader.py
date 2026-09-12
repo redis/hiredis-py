@@ -1,3 +1,7 @@
+import subprocess
+import sys
+from pathlib import Path
+
 import hiredis
 import pytest
 
@@ -184,6 +188,57 @@ def test_dict_with_unhashable_key(reader):
     )
     with pytest.raises(TypeError):
       reader.gets()
+
+def test_nested_array_allocation_failure_in_dict():
+  if sys.implementation.name != "cpython":
+    pytest.skip("requires CPython's _testcapi memory hooks")
+
+  try:
+    import _testcapi
+  except ImportError:
+    pytest.skip("requires CPython's _testcapi module")
+
+  if not all(
+    hasattr(_testcapi, name) for name in ("set_nomemory", "remove_mem_hooks")
+  ):
+    pytest.skip("requires _testcapi memory hooks")
+
+  code = r'''
+import _testcapi
+import hiredis
+
+reader = hiredis.Reader()
+reader.feed(b"%1\r\n:1\r\n")
+if reader.gets() is not False:
+    raise SystemExit(10)
+
+reader.feed(b"*1\r\n")
+caught_memory_error = False
+
+_testcapi.set_nomemory(0, 1)
+try:
+    reader.gets()
+except MemoryError:
+    caught_memory_error = True
+finally:
+    _testcapi.remove_mem_hooks()
+
+if not caught_memory_error:
+    raise SystemExit(2)
+
+print("MEMORY_ERROR")
+'''
+  repo_root = Path(__file__).resolve().parents[1]
+  result = subprocess.run(
+    [sys.executable, "-c", code],
+    cwd=repo_root,
+    capture_output=True,
+    text=True,
+  )
+  diagnostics = f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+
+  assert result.returncode == 0, diagnostics
+  assert "MEMORY_ERROR" in result.stdout, diagnostics
 
 def test_vector(reader):  
   reader.feed(b">4\r\n+pubsub\r\n+message\r\n+channel\r\n+message\r\n")
