@@ -83,6 +83,10 @@ PyTypeObject PushNotificationType = {
 
 static void *tryParentize(const redisReadTask *task, PyObject *obj) {
     PyObject *parent;
+    if (obj == NULL) {
+        /* The caller failed to allocate; propagate so hiredis reports OOM. */
+        return NULL;
+    }
     if (task && task->parent) {
         parent = (PyObject*)task->parent->obj;
         switch (task->parent->type) {
