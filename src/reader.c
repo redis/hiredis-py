@@ -83,6 +83,10 @@ PyTypeObject PushNotificationType = {
 
 static void *tryParentize(const redisReadTask *task, PyObject *obj) {
     PyObject *parent;
+    if (obj == NULL) {
+        /* The caller failed to allocate; propagate so hiredis reports OOM. */
+        return NULL;
+    }
     if (task && task->parent) {
         parent = (PyObject*)task->parent->obj;
         switch (task->parent->type) {
@@ -242,12 +246,22 @@ static PyObject* PushNotificationType_New(Py_ssize_t size) {
         return NULL;
     }
 
-   int res = PyList_SetSlice(obj, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, PyList_New(size));
+    /* Pre-sizes the notification, whose elements are filled in as they parse.
+     * PyList_SetSlice does not steal a reference to the list it is handed, so
+     * it has to be released here. */
+    PyObject* items = PyList_New(size);
+    if (items == NULL) {
+        Py_DECREF(obj);
+        return NULL;
+    }
 
-   if (res == -1) {
-       Py_DECREF(obj);
-       return NULL;
-   }
+    int res = PyList_SetSlice(obj, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, items);
+    Py_DECREF(items);
+
+    if (res == -1) {
+        Py_DECREF(obj);
+        return NULL;
+    }
 
     return obj;
 }
