@@ -351,6 +351,11 @@ def test_invalid_length(reader):
   with pytest.raises(ValueError):
     reader.feed(data, 0, 6)
 
+def test_offset_length_overflow(reader):
+  data = b"+ok\r\n"
+  with pytest.raises(ValueError):
+    reader.feed(data, 2**63 - 1, 1)
+
 def test_ok_offset(reader):
   data = b"blah+ok\r\n"
   reader.feed(data, 4)
