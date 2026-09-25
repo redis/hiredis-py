@@ -285,6 +285,12 @@ static void Reader_dealloc(hiredis_ReaderObject *self) {
     Py_CLEAR(self->replyErrorClass);
     Py_CLEAR(self->notEnoughDataObject);
 
+    /* A deferred exception is only handed back once a full reply has been
+     * read, so a reader dropped part-way through one still owns it. */
+    Py_CLEAR(self->error.ptype);
+    Py_CLEAR(self->error.pvalue);
+    Py_CLEAR(self->error.ptraceback);
+
     ((PyObject *)self)->ob_type->tp_free((PyObject*)self);
 }
 
@@ -292,6 +298,12 @@ static int Reader_traverse(hiredis_ReaderObject *self, visitproc visit, void *ar
     Py_VISIT(self->protocolErrorClass);
     Py_VISIT(self->replyErrorClass);
     Py_VISIT(self->notEnoughDataObject);
+
+    /* Owned for as long as the reply is incomplete. A custom error class can
+     * reach the reader, so a cycle can run through these. */
+    Py_VISIT(self->error.ptype);
+    Py_VISIT(self->error.pvalue);
+    Py_VISIT(self->error.ptraceback);
     return 0;
 }
 
