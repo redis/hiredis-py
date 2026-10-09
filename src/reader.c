@@ -170,8 +170,8 @@ static void *createStringObject(const redisReadTask *task, char *str, size_t len
     } else {
         if (task->type == REDIS_REPLY_VERB) {
             /* Skip 4 bytes of verbatim type header. */
-            memmove(str, str+4, len);
             len -= 4;
+            memmove(str, str+4, len);
         }
         obj = createDecodedString(self, str, len);
     }
