@@ -38,7 +38,7 @@ jobs:
 
        - name: Build wheels
          if: matrix.os != 'windows-11-arm'
-         uses: pypa/cibuildwheel@v3.2.0
+         uses: pypa/cibuildwheel@v4.2.1
          env:
            # configure cibuildwheel to build native archs ('auto'), and some
            # emulated ones
@@ -46,7 +46,7 @@ jobs:
 
        - name: Build wheels on Windows ARM64
          if: matrix.os == 'windows-11-arm'
-         uses: pypa/cibuildwheel@v3.2.0
+         uses: pypa/cibuildwheel@v4.2.1
          env:
            CIBW_ARCHS_WINDOWS: ARM64
 
