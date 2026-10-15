@@ -1,9 +1,7 @@
-black==24.3.0
-flake8==4.0.1
-isort==5.10.1
 pytest>=7.2.0
 memray==1.20.0 ; sys_platform != 'win32' and platform_python_implementation != 'PyPy'
 pytest-memray==1.7.0 ; sys_platform != 'win32' and platform_python_implementation != 'PyPy'
+ruff==0.17.1
 setuptools
 tox==3.24.4
 vulture>=2.3.0
