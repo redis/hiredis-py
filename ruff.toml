@@ -1,0 +1,16 @@
+line-length = 88
+target-version = "py39"
+extend-exclude = [
+    "build",
+    "dist",
+    "docker",
+    "docs",
+    "vendor",
+    "venv*",
+    ".venv*",
+    "whitelist.py",
+]
+
+[lint]
+select = ["E", "F", "W", "I"]
+ignore = ["F405", "E203"]

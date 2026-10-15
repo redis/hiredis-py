@@ -14,4 +14,6 @@ def test_reader_gc():
     A()
     gc.collect()
 
-    assert not any(isinstance(o, A) for o in gc.get_objects()), "Referent was not collected"
+    assert not any(isinstance(o, A) for o in gc.get_objects()), (
+        "Referent was not collected"
+    )
