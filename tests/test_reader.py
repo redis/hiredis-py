@@ -365,6 +365,12 @@ def test_feed_bytearray(reader):
   reader.feed(bytearray(b"+ok\r\n"))
   assert b"ok" == reader.gets()
 
+def test_feed_offset_length_overflow(reader):
+  # off + len wraps around Py_ssize_t, so the old guard was bypassed and the
+  # reader copied from far past the buffer. The slice must still be rejected.
+  with pytest.raises(ValueError):
+    reader.feed(b"hello", (1 << 63) - 1, 1 << 20)
+
 def test_maxbuf(reader):
   defaultmaxbuf = reader.getmaxbuf()
   reader.setmaxbuf(0)
