@@ -81,6 +81,49 @@ PyTypeObject PushNotificationType = {
     .tp_init = (initproc) PushNotificationType_init,
 };
 
+/* Take ownership of a map key until its value shows up. */
+static int Reader_pushPendingKey(hiredis_ReaderObject *self, PyObject *key) {
+    if (self->pendingCount == self->pendingCapacity) {
+        Py_ssize_t capacity;
+        PyObject **keys;
+
+        /* Check the doubling and the byte count for overflow. */
+        if (self->pendingCapacity > PY_SSIZE_T_MAX / 2) {
+            PyErr_NoMemory();
+            return -1;
+        }
+
+        capacity = self->pendingCapacity ? self->pendingCapacity * 2 : 8;
+
+        if ((size_t)capacity > PY_SSIZE_T_MAX / sizeof(PyObject *)) {
+            PyErr_NoMemory();
+            return -1;
+        }
+
+        keys = PyMem_Realloc(self->pendingKeys, capacity * sizeof(PyObject *));
+
+        if (keys == NULL) {
+            PyErr_NoMemory();
+            return -1;
+        }
+
+        self->pendingKeys = keys;
+        self->pendingCapacity = capacity;
+    }
+
+    self->pendingKeys[self->pendingCount++] = key;
+    return 0;
+}
+
+static void Reader_clearPendingKeys(hiredis_ReaderObject *self) {
+    while (self->pendingCount > 0) {
+        /* Decrement separately: Py_CLEAR names its argument more than once
+         * before 3.12, so a side effect here would run twice. */
+        self->pendingCount--;
+        Py_CLEAR(self->pendingKeys[self->pendingCount]);
+    }
+}
+
 static void *tryParentize(const redisReadTask *task, PyObject *obj) {
     PyObject *parent;
     if (obj == NULL) {
@@ -90,24 +133,47 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
     if (task && task->parent) {
         parent = (PyObject*)task->parent->obj;
         switch (task->parent->type) {
-            case REDIS_REPLY_MAP:
+            case REDIS_REPLY_MAP: {
+                hiredis_ReaderObject *self = (hiredis_ReaderObject*)task->privdata;
+
+                /* Bailing out below leaves keys on the pending stack, which is
+                 * safe without unwinding them here: returning NULL is how a
+                 * reply-object callback reports failure, so hiredis marks the
+                 * reader as errored and stops, and gets() clears the stack on
+                 * its error path before returning. */
+
                 if (task->idx % 2 == 0) {
-                    /* Set a temporary item to save the object as a key. */
-                    int res = PyDict_SetItem(parent, obj, Py_None);
+                    /* Hold on to the key; the stack takes over our reference. */
+                    if (Reader_pushPendingKey(self, obj) == -1) {
+                        Py_DECREF(obj);
+                        return NULL;
+                    }
+                } else {
+                    /* The value completes the pair, so the key can go in now. */
+                    PyObject *key;
+                    int res;
+
+                    if (self->pendingCount == 0) {
+                        /* A value is always preceded by its key, so this is
+                         * unreachable; bail out rather than corrupt the dict. */
+                        PyErr_SetString(PyExc_RuntimeError,
+                                        "map value arrived without a pending key");
+                        Py_DECREF(obj);
+                        return NULL;
+                    }
+
+                    self->pendingCount--;
+                    key = self->pendingKeys[self->pendingCount];
+                    res = PyDict_SetItem(parent, key, obj);
+                    Py_DECREF(key);
                     Py_DECREF(obj);
 
                     if (res == -1) {
                         return NULL;
                     }
-                } else {
-                    /* Pop the temporary item and set proper key and value. */
-                    PyObject *last_item = PyObject_CallMethod(parent, "popitem", NULL);
-                    PyObject *last_key = PyTuple_GetItem(last_item, 0);
-                    PyDict_SetItem(parent, last_key, obj);
-                    Py_DECREF(last_item);
-                    Py_DECREF(obj);
                 }
                 break;
+            }
             default:
                 assert(PyList_Check(parent));
                 PyList_SET_ITEM(parent, task->idx, obj);
@@ -284,6 +350,10 @@ static void Reader_dealloc(hiredis_ReaderObject *self) {
     Py_CLEAR(self->protocolErrorClass);
     Py_CLEAR(self->replyErrorClass);
     Py_CLEAR(self->notEnoughDataObject);
+    Reader_clearPendingKeys(self);
+    PyMem_Free(self->pendingKeys);
+    self->pendingKeys = NULL;
+    self->pendingCapacity = 0;
 
     ((PyObject *)self)->ob_type->tp_free((PyObject*)self);
 }
@@ -292,6 +362,9 @@ static int Reader_traverse(hiredis_ReaderObject *self, visitproc visit, void *ar
     Py_VISIT(self->protocolErrorClass);
     Py_VISIT(self->replyErrorClass);
     Py_VISIT(self->notEnoughDataObject);
+    for (Py_ssize_t i = 0; i < self->pendingCount; i++) {
+        Py_VISIT(self->pendingKeys[i]);
+    }
     return 0;
 }
 
@@ -392,6 +465,10 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         Py_INCREF(self->replyErrorClass);
         Py_INCREF(self->notEnoughDataObject);
 
+        self->pendingKeys = NULL;
+        self->pendingCount = 0;
+        self->pendingCapacity = 0;
+
         self->error.ptype = NULL;
         self->error.pvalue = NULL;
         self->error.ptraceback = NULL;
@@ -457,6 +534,10 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
             Py_DECREF(obj);
             Py_DECREF(err);
         }
+
+        /* An aborted reply can leave a key waiting for a value that will now
+         * never arrive. Drop it so the reader doesn't hold it forever. */
+        Reader_clearPendingKeys(self);
         return NULL;
     }
 
@@ -464,6 +545,23 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
         Py_INCREF(self->notEnoughDataObject);
         return self->notEnoughDataObject;
     } else {
+        /* A complete reply means every map was closed, so no key can still be
+         * waiting for its value. Checked at runtime rather than asserted so a
+         * push/pop imbalance surfaces here instead of as a slow leak. */
+        if (self->pendingCount != 0) {
+            /* Drop every scrap of per-reply state, the deferred exception
+             * included: it belongs to a reply we are refusing to return, and
+             * would otherwise surface on the next call. */
+            Reader_clearPendingKeys(self);
+            Py_CLEAR(self->error.ptype);
+            Py_CLEAR(self->error.pvalue);
+            Py_CLEAR(self->error.ptraceback);
+            Py_DECREF(obj);
+            PyErr_SetString(PyExc_RuntimeError,
+                            "pending map keys left over after a complete reply");
+            return NULL;
+        }
+
         /* Restore error when there is one. */
         if (self->error.ptype != NULL) {
             Py_DECREF(obj);
