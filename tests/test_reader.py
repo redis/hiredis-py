@@ -188,7 +188,16 @@ def test_dict_with_unhashable_key(reader):
     with pytest.raises(TypeError):
       reader.gets()
 
-def test_vector(reader):  
+def test_dict_with_repeated_key(reader):
+  reader.feed(b"%3\r\n+a\r\n:1\r\n+b\r\n:2\r\n+a\r\n:3\r\n")
+  assert {b"a": 3, b"b": 2} == reader.gets()
+
+def test_dict_with_keys_equal_after_decoding():
+  reader = hiredis.Reader(encoding="utf-8", errors="ignore")
+  reader.feed(b"%3\r\n+name\r\n+alice\r\n+role\r\n+user\r\n+na\xffme\r\n+admin\r\n")
+  assert {"name": "admin", "role": "user"} == reader.gets()
+
+def test_vector(reader):
   reader.feed(b">4\r\n+pubsub\r\n+message\r\n+channel\r\n+message\r\n")
   result = reader.gets()
   assert isinstance(result, hiredis.PushNotification)

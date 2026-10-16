@@ -92,8 +92,20 @@ static void *tryParentize(const redisReadTask *task, PyObject *obj) {
         switch (task->parent->type) {
             case REDIS_REPLY_MAP:
                 if (task->idx % 2 == 0) {
+                    /* A key equal to one already in the map keeps its old
+                     * position, so popitem() would later pop a different
+                     * entry. Drop it first so the temporary item is last. */
+                    int res = PyDict_Contains(parent, obj);
+                    if (res == 1) {
+                        res = PyDict_DelItem(parent, obj);
+                    }
+                    if (res == -1) {
+                        Py_DECREF(obj);
+                        return NULL;
+                    }
+
                     /* Set a temporary item to save the object as a key. */
-                    int res = PyDict_SetItem(parent, obj, Py_None);
+                    res = PyDict_SetItem(parent, obj, Py_None);
                     Py_DECREF(obj);
 
                     if (res == -1) {
