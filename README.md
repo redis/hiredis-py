@@ -53,6 +53,12 @@ The `hiredis` module contains the `Reader` class. This class is responsible for
 parsing replies from the stream of data that is read from a Redis connection.
 It does not contain functionality to handle I/O.
 
+`Reader` instances are stateful protocol parsers. A single `Reader` instance is
+intended to be used by one connection stream at a time and should not be called
+concurrently from multiple threads. Multi-threaded applications should use a
+separate `Reader` per connection/thread, or serialize access to a shared
+`Reader` externally.
+
 ### Reply parser
 
 The `Reader` class has two methods that are used when parsing replies from a
