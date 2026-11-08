@@ -312,6 +312,22 @@ def test_set_encoding_invalid_error_handler():
   with pytest.raises(LookupError):
     r.set_encoding(encoding="utf-8", errors="unknown")
 
+def test_encoding_arguments_may_be_freed():
+  # The strings are built at runtime so that nothing else keeps them alive. The
+  # Reader must not rely on them after the call, so reuse their memory.
+  for _ in range(50):
+    encoding = "".join(["ut", "f-8"])
+    errors = "".join(["ig", "nore"])
+    from_init = hiredis.Reader(encoding=encoding, errors=errors)
+    from_set = hiredis.Reader()
+    from_set.set_encoding(encoding, errors)
+    del encoding, errors
+    reused = ["".join(["XX", "XXX"]) for _ in range(64)]
+    reused += ["".join(["YY", "YYYY"]) for _ in range(64)]
+    for r in (from_init, from_set):
+      r.feed(b"+\x80value\r\n")
+      assert "value" == r.gets()
+
 def test_null_multi_bulk(reader):
   reader.feed(b"*-1\r\n")
   assert reader.gets() is None
