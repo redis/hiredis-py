@@ -344,7 +344,20 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
     return 0;
 }
 
-static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+/* Thread safety on free-threaded builds
+ *
+ * A Reader holds mutable state (the hiredis buffer and parse stack, the decode
+ * settings and a stashed error) that must not be touched by two threads at
+ * once. Every method that reads or writes it runs inside a critical section on
+ * the Reader (Py_BEGIN_CRITICAL_SECTION), which makes each call atomic with
+ * respect to the others. With a GIL these are no-ops.
+ *
+ * A critical section is released if the thread blocks or detaches while it
+ * holds it, which can happen while a Python callable runs. The guarantee
+ * therefore does not extend to a protocolError/replyError callable written in
+ * Python: it should not block or call back into the Reader it was given to. */
+
+static int Reader_init_impl(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
     static char *kwlist[] = { "protocolError", "replyError", "encoding", "errors", "notEnoughData", NULL };
     PyObject *protocolErrorClass = NULL;
     PyObject *replyErrorClass = NULL;
@@ -372,6 +385,14 @@ static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwd
     }
 
     return _Reader_set_encoding(self, encoding, errors);
+}
+
+static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+    int res;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    res = Reader_init_impl(self, args, kwds);
+    Py_END_CRITICAL_SECTION();
+    return res;
 }
 
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -422,7 +443,9 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
       goto error;
     }
 
+    Py_BEGIN_CRITICAL_SECTION(self);
     redisReaderFeed(self->reader, (char *)buf.buf + off, len);
+    Py_END_CRITICAL_SECTION();
     PyBuffer_Release(&buf);
     Py_RETURN_NONE;
 
@@ -431,7 +454,7 @@ error:
     return NULL;
 }
 
-static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
+static PyObject *Reader_gets_impl(hiredis_ReaderObject *self, PyObject *args) {
     PyObject *obj;
 
     self->shouldDecode = 1;
@@ -478,6 +501,14 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
     }
 }
 
+static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
+    PyObject *res;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    res = Reader_gets_impl(self, args);
+    Py_END_CRITICAL_SECTION();
+    return res;
+}
+
 static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg) {
     long maxbuf;
 
@@ -492,27 +523,41 @@ static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg) {
             return NULL;
         }
     }
+    Py_BEGIN_CRITICAL_SECTION(self);
     self->reader->maxbuf = maxbuf;
+    Py_END_CRITICAL_SECTION();
 
     Py_INCREF(Py_None);
     return Py_None;
 }
 
 static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self) {
-    return PyLong_FromSize_t(self->reader->maxbuf);
+    size_t maxbuf;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    maxbuf = self->reader->maxbuf;
+    Py_END_CRITICAL_SECTION();
+    return PyLong_FromSize_t(maxbuf);
 }
 
 static PyObject *Reader_len(hiredis_ReaderObject *self) {
-    return PyLong_FromSize_t(self->reader->len);
+    size_t len;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    len = self->reader->len;
+    Py_END_CRITICAL_SECTION();
+    return PyLong_FromSize_t(len);
 }
 
 static PyObject *Reader_has_data(hiredis_ReaderObject *self) {
-    if(self->reader->pos < self->reader->len)
+    int has_data;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    has_data = self->reader->pos < self->reader->len;
+    Py_END_CRITICAL_SECTION();
+    if (has_data)
         Py_RETURN_TRUE;
     Py_RETURN_FALSE;
 }
 
-static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+static PyObject *Reader_set_encoding_impl(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
     static char *kwlist[] = { "encoding", "errors", NULL };
     char *encoding = NULL;
     char *errors = NULL;
@@ -525,4 +570,12 @@ static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args,
 
     Py_RETURN_NONE;
 
+}
+
+static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+    PyObject *res;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    res = Reader_set_encoding_impl(self, args, kwds);
+    Py_END_CRITICAL_SECTION();
+    return res;
 }

@@ -66,3 +66,30 @@ jobs:
        - name: build and install the wheel
          run: |
            python setup.py bdist_wheel
+
+   run-tests-free-threaded:
+     runs-on: ${{matrix.os}}
+     timeout-minutes: 30
+     strategy:
+       matrix:
+         python-version: ['3.13t', '3.14t', '3.15t']
+         os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
+       fail-fast: false
+     name: Python ${{ matrix.python-version }} ${{matrix.os}}
+     steps:
+       - uses: actions/checkout@v6
+         with:
+           submodules: recursive
+       - uses: actions/setup-python@v6
+         with:
+           python-version: ${{ matrix.python-version }}
+       - name: build and run tests without the GIL
+         env:
+           # Keep the GIL off for the whole run so the concurrency tests are
+           # meaningful. test_import_does_not_enable_gil ignores this and checks
+           # that importing hiredis does not turn the GIL back on by itself.
+           PYTHON_GIL: 0
+         run: |
+           pip install -U pip setuptools wheel pytest
+           python setup.py build_ext --inplace
+           python -m pytest

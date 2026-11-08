@@ -65,6 +65,20 @@ PyMODINIT_FUNC PyInit_hiredis(void)
     }
 
     mod_hiredis = PyModule_Create(&hiredis_ModuleDef);
+    if (mod_hiredis == NULL) {
+        return NULL;
+    }
+
+#ifdef Py_GIL_DISABLED
+    /* Declare that the module can run without the GIL, so that importing it
+     * does not re-enable the GIL in free-threaded builds. Module state is only
+     * written here, during import, and every Reader method takes a per-object
+     * critical section (see reader.c). */
+    if (PyUnstable_Module_SetGIL(mod_hiredis, Py_MOD_GIL_NOT_USED) < 0) {
+        Py_CLEAR(mod_hiredis);
+        return NULL;
+    }
+#endif
 
     /* Setup custom exceptions */
     HIREDIS_STATE->HiErr_Base =

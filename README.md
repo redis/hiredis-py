@@ -133,6 +133,16 @@ its `except` clauses), `Reader` can be initialized with the `protocolError` and
 subclass of `Exception`. When not provided, `Reader` will use the default
 error types.
 
+### Free-threaded Python
+
+hiredis-py declares that it can run without the GIL, so importing it does not
+re-enable the GIL on free-threaded builds of CPython (3.13t and later). Calls
+on a single `Reader`, and calls to `pack_command`, are safe from multiple
+threads. A `Reader` is still a single stream: replies fed by several threads
+are each returned once, to whichever thread calls `gets` next. A Python
+callable passed as `protocolError` or `replyError` should not block or call back
+into the `Reader` it was given to.
+
 ## Benchmarks
 
 The repository contains a benchmarking script in the `benchmark` directory,
