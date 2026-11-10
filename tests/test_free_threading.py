@@ -153,6 +153,32 @@ def test_concurrent_gets_with_different_decoding():
     assert all(reply == b"hello" for reply in raw)
 
 
+def test_concurrent_set_encoding_while_decoding():
+    """Changing the decode settings never affects a decode that is in progress."""
+    total = 20000
+    reader = hiredis.Reader(encoding="utf-8")
+    reader.feed(b"$5\r\nhello\r\n" * total)
+    sinks = [[], []]
+
+    def consume(sink):
+        return lambda: drain(reader, sink)
+
+    def reconfigure():
+        for i in range(100_000):  # bounded, in case the consumers fail
+            if not reader.has_data():
+                return
+            if i % 2:
+                reader.set_encoding("latin-1", "replace")
+            else:
+                reader.__init__(encoding="utf-8")
+
+    run_in_threads(consume(sinks[0]), consume(sinks[1]), reconfigure, reconfigure)
+
+    replies = sinks[0] + sinks[1]
+    assert len(replies) == total
+    assert all(reply == "hello" for reply in replies)
+
+
 def test_concurrent_mixed_operations_on_shared_reader():
     """Every public Reader method can be called concurrently without crashing."""
     reader = hiredis.Reader()

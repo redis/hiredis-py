@@ -122,7 +122,17 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
     if (self->encoding == NULL || !self->shouldDecode) {
         obj = PyBytes_FromStringAndSize(str, len);
     } else {
-        obj = PyUnicode_Decode(str, len, self->encoding, self->errors);
+        /* Decoding can run Python code (a codec or an error handler) that
+         * replaces this Reader's encoding, so hold references to the names. */
+        PyObject *encoding = self->encoding;
+        PyObject *errors = self->errors;
+
+        Py_INCREF(encoding);
+        Py_XINCREF(errors);
+        obj = PyUnicode_Decode(str, len, PyBytes_AsString(encoding),
+                               errors ? PyBytes_AsString(errors) : NULL);
+        Py_DECREF(encoding);
+        Py_XDECREF(errors);
         if (obj == NULL) {
             /* Store error when this is the first. */
             if (self->error.ptype == NULL)
@@ -278,8 +288,8 @@ redisReplyObjectFunctions hiredis_ObjectFunctions = {
 
 static void Reader_dealloc(hiredis_ReaderObject *self) {
     PyObject_GC_UnTrack(self);
-    PyMem_Free(self->encoding);
-    PyMem_Free(self->errors);
+    Py_CLEAR(self->encoding);
+    Py_CLEAR(self->errors);
     redisReaderFree(self->reader);
     Py_CLEAR(self->protocolErrorClass);
     Py_CLEAR(self->replyErrorClass);
@@ -310,24 +320,26 @@ static int _Reader_set_exception(PyObject **target, PyObject *value) {
     return 1;
 }
 
-/* The "z" format of PyArg_Parse*() hands out a pointer into the argument
- * object, which can be freed as soon as the call returns. The Reader therefore
- * keeps a copy of the strings it was given. */
-static char *_Reader_copy_string(const char *str) {
-    size_t size = strlen(str) + 1;
-    char *copy = PyMem_Malloc(size);
+/* Replaces *target with a copy of name in a bytes object, or clears it if name
+ * is NULL. The "z" format of PyArg_Parse*() hands out a pointer into the
+ * argument object, which can be freed as soon as the call returns, so the
+ * Reader must not keep that pointer. */
+static int _Reader_set_name(PyObject **target, const char *name) {
+    PyObject *copy = NULL, *old;
 
-    if (copy == NULL) {
-        PyErr_NoMemory();
-        return NULL;
+    if (name) {
+        copy = PyBytes_FromStringAndSize(name, strlen(name));
+        if (!copy)
+            return -1;
     }
-    memcpy(copy, str, size);
-    return copy;
+    old = *target;
+    *target = copy;
+    Py_XDECREF(old);
+    return 0;
 }
 
 static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char *errors) {
     PyObject *codecs, *result;
-    char *copy;
 
     if (encoding) {  // validate that the encoding exists, raises LookupError if not
         codecs = PyImport_ImportModule("codecs");
@@ -338,15 +350,9 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         if (!result)
             return -1;
         Py_DECREF(result);
-        copy = _Reader_copy_string(encoding);
-        if (!copy)
-            return -1;
-        PyMem_Free(self->encoding);
-        self->encoding = copy;
-    } else {
-        PyMem_Free(self->encoding);
-        self->encoding = NULL;
     }
+    if (_Reader_set_name(&self->encoding, encoding) == -1)
+        return -1;
 
     if (errors) {   // validate that the error handler exists, raises LookupError if not
         codecs = PyImport_ImportModule("codecs");
@@ -357,17 +363,9 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         if (!result)
             return -1;
         Py_DECREF(result);
-        copy = _Reader_copy_string(errors);
-        if (!copy)
-            return -1;
-        PyMem_Free(self->errors);
-        self->errors = copy;
-    } else {
-        PyMem_Free(self->errors);
-        self->errors = NULL;  // NULL means "strict" to PyUnicode_Decode()
     }
-
-    return 0;
+    // NULL errors means "strict", which is what PyUnicode_Decode() assumes
+    return _Reader_set_name(&self->errors, errors);
 }
 
 /* Thread safety on free-threaded builds
@@ -379,9 +377,12 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
  * respect to the others. With a GIL these are no-ops.
  *
  * A critical section is released if the thread blocks or detaches while it
- * holds it, which can happen while a Python callable runs. The guarantee
- * therefore does not extend to a protocolError/replyError callable written in
- * Python: it should not block or call back into the Reader it was given to. */
+ * holds it, which can happen while Python code runs inside gets(): a
+ * protocolError/replyError callable, a custom codec or an error handler. Other
+ * threads can then use the Reader until that code returns, just as they can
+ * with a GIL, so such code should not block or call back into the Reader. The
+ * encoding and errors names are the exception: a decode in progress holds its
+ * own references to them, so replacing them from another thread is safe. */
 
 static int Reader_init_impl(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
     static char *kwlist[] = { "protocolError", "replyError", "encoding", "errors", "notEnoughData", NULL };

@@ -6,8 +6,12 @@
 typedef struct {
     PyObject_HEAD
     redisReader *reader;
-    char *encoding;
-    char *errors;
+    /* Names for PyUnicode_Decode(), held in bytes objects owned by the Reader
+     * (NULL means "no decoding" and "strict" respectively). They are replaced,
+     * never modified, so that a decode in progress can keep its own reference
+     * to the ones it uses. */
+    PyObject *encoding;
+    PyObject *errors;
     int shouldDecode;
     PyObject *protocolErrorClass;
     PyObject *replyErrorClass;

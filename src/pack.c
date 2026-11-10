@@ -77,9 +77,20 @@ pack_command(PyObject *cmd)
         }
         else if (PyMemoryView_Check(item))
         {
-            Py_buffer *p_buf = PyMemoryView_GET_BUFFER(item);
-            tokens[i] = sdsnewlen(p_buf->buf, p_buf->len);
-            lengths[i] = p_buf->len;
+            // Take a buffer export instead of reading the memoryview's struct
+            // directly: it keeps the view from being released (and its memory
+            // from being freed) while it is copied.
+            Py_buffer view;
+            if (PyObject_GetBuffer(item, &view, PyBUF_SIMPLE) < 0)
+            {
+                // PyObject_GetBuffer sets an exception: the memoryview was
+                // released, or is not contiguous.
+                goto cleanup;
+            }
+
+            tokens[i] = sdsnewlen(view.buf, view.len);
+            lengths[i] = view.len;
+            PyBuffer_Release(&view);
         }
         else
         {

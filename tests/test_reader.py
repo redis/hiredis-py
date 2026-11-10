@@ -1,3 +1,4 @@
+import codecs
 import gc
 import platform
 
@@ -327,6 +328,38 @@ def test_encoding_arguments_may_be_freed():
     for r in (from_init, from_set):
       r.feed(b"+\x80value\r\n")
       assert "value" == r.gets()
+
+def test_set_encoding_during_decode():
+  # A codec runs Python code, which may replace the Reader's encoding while the
+  # one being used is still needed to report a failure.
+  name = "hiredis_test_replace_encoding"
+  reader = hiredis.Reader()
+
+  def decode(data, errors="strict"):
+    reader.set_encoding("latin-1", "replace")
+    reused = ["".join(["XX", "XXX"]) for _ in range(64)]
+    raise ValueError("boom")
+
+  def search(requested):
+    if requested == name:
+      return codecs.CodecInfo(lambda s, e="strict": (s.encode(), len(s)), decode, name=name)
+
+  codecs.register(search)
+  try:
+    reader.set_encoding(name)
+    reader.feed(b"$3\r\nfoo\r\n")
+    with pytest.raises(ValueError) as excinfo:
+      reader.gets()
+    if platform.python_implementation() == "CPython":
+      # CPython names the codec in the message (< 3.11) or in a note (>= 3.11).
+      report = " ".join([str(excinfo.value)] + getattr(excinfo.value, "__notes__", []))
+      assert name in report
+  finally:
+    if hasattr(codecs, "unregister"):  # Python 3.10+
+      codecs.unregister(search)
+
+  reader.feed(b"+\xe9\r\n")
+  assert reader.gets() == "\xe9"
 
 def test_null_multi_bulk(reader):
   reader.feed(b"*-1\r\n")
