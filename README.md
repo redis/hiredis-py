@@ -141,8 +141,10 @@ on a single `Reader`, and calls to `pack_command`, are safe from multiple
 threads. A `Reader` is still a single stream: replies fed by several threads
 are each returned once, to whichever thread calls `gets` next. Python code that
 runs while `gets` builds a reply (a `protocolError` or `replyError` callable, a
-custom codec or an error handler) should not block or call back into the
-`Reader`, because other threads can use it until that code returns.
+custom codec or an error handler) can be interleaved with other threads, so a
+`Reader` marks itself busy while `gets` runs: `feed`, `gets` and `__init__`
+raise `RuntimeError` if they are called on it in the meantime, from that code or
+from another thread.
 
 ## Benchmarks
 

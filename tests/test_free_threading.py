@@ -216,3 +216,98 @@ def test_concurrent_pack_command():
             assert hiredis.pack_command(cmd) == expected
 
     run_in_threads(*[target] * THREADS)
+
+
+def test_callback_cannot_reenter_the_reader():
+    """Python code run by gets() cannot feed, read or re-initialize its Reader."""
+    refused = {}
+    calls = []
+
+    def reply_error(message):
+        calls.append(message)
+        if len(calls) == 1:  # a gets() that is let in would call this again
+            for name, call in (
+                ("feed", lambda: reader.feed(b"+OK\r\n")),
+                ("gets", reader.gets),
+                ("__init__", reader.__init__),
+            ):
+                try:
+                    call()
+                except RuntimeError as exc:
+                    refused[name] = str(exc)
+        return ValueError(message)
+
+    reader = hiredis.Reader(replyError=reply_error)
+    reader.feed(b"*2\r\n-ERR first\r\n:2\r\n")
+    first, second = reader.gets()
+
+    assert sorted(refused) == ["__init__", "feed", "gets"]
+    assert all("is still running" in message for message in refused.values())
+    assert calls == ["ERR first"]
+    # The refused calls neither took the reply nor added to the stream.
+    assert isinstance(first, ValueError) and str(first) == "ERR first"
+    assert second == 2
+    assert not reader.has_data()
+    reader.feed(b"+OK\r\n")
+    assert reader.gets() == b"OK"
+
+
+def test_other_threads_cannot_enter_a_reader_while_a_callback_runs():
+    """A thread that calls in while gets() waits in Python code gets an error,
+    instead of taking the reply that is being built."""
+    entered, release = threading.Event(), threading.Event()
+
+    def reply_error(message):
+        entered.set()
+        release.wait(TIMEOUT)
+        return ValueError(message)
+
+    reader = hiredis.Reader(replyError=reply_error)
+    reader.feed(b"*2\r\n-ERR first\r\n:2\r\n")
+    result = []
+
+    def getter():
+        try:
+            result.append(reader.gets())
+        except BaseException as exc:
+            result.append(exc)
+
+    thread = threading.Thread(target=getter, daemon=True)
+    thread.start()
+    try:
+        assert entered.wait(TIMEOUT)
+        for call in (lambda: reader.feed(b"+OK\r\n"), reader.gets, reader.__init__):
+            with pytest.raises(RuntimeError, match="is still running"):
+                call()
+    finally:
+        release.set()
+        thread.join(TIMEOUT)
+
+    assert not thread.is_alive()
+    assert len(result) == 1 and not isinstance(result[0], BaseException), result
+    first, second = result[0]
+    assert isinstance(first, ValueError) and str(first) == "ERR first"
+    assert second == 2
+    reader.feed(b"+OK\r\n")
+    assert reader.gets() == b"OK"
+
+
+def test_reader_is_idle_again_after_gets_fails():
+    """Whichever way gets() fails, the next call is not refused as re-entrant."""
+
+    def reply_error(message):
+        raise KeyError(message)
+
+    reader = hiredis.Reader(replyError=reply_error, encoding="utf-8")
+    with pytest.raises(TypeError):
+        reader.gets("not a flag")
+    reader.feed(b"-ERR\r\n")
+    with pytest.raises(KeyError):
+        reader.gets()
+    reader.feed(b"+\xff\r\n")
+    with pytest.raises(UnicodeDecodeError):
+        reader.gets()
+    reader.feed(b"!\r\n")
+    for _ in range(2):  # a protocol error is permanent, but it is still that error
+        with pytest.raises(hiredis.ProtocolError):
+            reader.gets()

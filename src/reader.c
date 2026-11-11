@@ -376,13 +376,31 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
  * the Reader (Py_BEGIN_CRITICAL_SECTION), which makes each call atomic with
  * respect to the others. With a GIL these are no-ops.
  *
- * A critical section is released if the thread blocks or detaches while it
- * holds it, which can happen while Python code runs inside gets(): a
- * protocolError/replyError callable, a custom codec or an error handler. Other
- * threads can then use the Reader until that code returns, just as they can
- * with a GIL, so such code should not block or call back into the Reader. The
- * encoding and errors names are the exception: a decode in progress holds its
- * own references to them, so replacing them from another thread is safe. */
+ * A critical section is released while its thread is paused: when it blocks, or
+ * when the interpreter stops the world (a GC run started by any thread). That
+ * can happen while Python code runs inside gets(): a protocolError/replyError
+ * callable, a custom codec or an error handler. Another thread could then enter
+ * the parser in the middle of a reply and take or corrupt it, as it can with a
+ * GIL when the interpreter switches threads. The parser cannot be re-entered:
+ * gets() would take the reply being built, feed() can move the buffer that a
+ * decode is reading, and __init__() replaces the callables being called. So
+ * gets() marks the Reader busy while it runs, and feed(), gets() and __init__()
+ * raise RuntimeError if they are called in the meantime, from the callback
+ * itself or from another thread. The other methods only read or replace single
+ * fields, and a decode in progress holds its own references to the encoding and
+ * errors names, so they stay safe. */
+
+/* Raises RuntimeError if a gets() call is still running on this Reader. */
+static int Reader_check_idle(hiredis_ReaderObject *self, const char *method) {
+    if (self->busy) {
+        PyErr_Format(PyExc_RuntimeError,
+                     "Reader.%s() called while Reader.gets() is still running "
+                     "on this Reader, from a callback or another thread",
+                     method);
+        return -1;
+    }
+    return 0;
+}
 
 static int Reader_init_impl(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
     static char *kwlist[] = { "protocolError", "replyError", "encoding", "errors", "notEnoughData", NULL };
@@ -415,9 +433,10 @@ static int Reader_init_impl(hiredis_ReaderObject *self, PyObject *args, PyObject
 }
 
 static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
-    int res;
+    int res = -1;
     Py_BEGIN_CRITICAL_SECTION(self);
-    res = Reader_init_impl(self, args, kwds);
+    if (Reader_check_idle(self, "__init__") == 0)
+        res = Reader_init_impl(self, args, kwds);
     Py_END_CRITICAL_SECTION();
     return res;
 }
@@ -434,6 +453,7 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         self->errors = NULL;  // NULL means "strict" to PyUnicode_Decode()
         self->notEnoughDataObject = Py_False;
         self->shouldDecode = 1;
+        self->busy = 0;
         self->protocolErrorClass = HIREDIS_STATE->HiErr_ProtocolError;
         self->replyErrorClass = HIREDIS_STATE->HiErr_ReplyError;
         Py_INCREF(self->protocolErrorClass);
@@ -451,6 +471,7 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
     Py_buffer buf;
     Py_ssize_t off = 0;
     Py_ssize_t len = -1;
+    int refused;
 
     if (!PyArg_ParseTuple(args, "s*|nn", &buf, &off, &len)) {
         return NULL;
@@ -471,9 +492,13 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
     }
 
     Py_BEGIN_CRITICAL_SECTION(self);
-    redisReaderFeed(self->reader, (char *)buf.buf + off, len);
+    refused = Reader_check_idle(self, "feed");
+    if (!refused)
+        redisReaderFeed(self->reader, (char *)buf.buf + off, len);
     Py_END_CRITICAL_SECTION();
     PyBuffer_Release(&buf);
+    if (refused)
+        return NULL;
     Py_RETURN_NONE;
 
 error:
@@ -529,9 +554,13 @@ static PyObject *Reader_gets_impl(hiredis_ReaderObject *self, PyObject *args) {
 }
 
 static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
-    PyObject *res;
+    PyObject *res = NULL;
     Py_BEGIN_CRITICAL_SECTION(self);
-    res = Reader_gets_impl(self, args);
+    if (Reader_check_idle(self, "gets") == 0) {
+        self->busy = 1;
+        res = Reader_gets_impl(self, args);
+        self->busy = 0;
+    }
     Py_END_CRITICAL_SECTION();
     return res;
 }

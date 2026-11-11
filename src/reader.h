@@ -13,6 +13,9 @@ typedef struct {
     PyObject *encoding;
     PyObject *errors;
     int shouldDecode;
+    /* Set while gets() runs, so that the parser is not re-entered from a
+     * callback or by another thread (see the note in reader.c). */
+    int busy;
     PyObject *protocolErrorClass;
     PyObject *replyErrorClass;
     PyObject *notEnoughDataObject;
