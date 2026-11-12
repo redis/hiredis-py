@@ -313,6 +313,21 @@ def test_set_encoding_invalid_error_handler():
   with pytest.raises(LookupError):
     r.set_encoding(encoding="utf-8", errors="unknown")
 
+def test_set_encoding_applies_both_arguments_or_none():
+  r = hiredis.Reader(encoding="utf-8")
+  with pytest.raises(LookupError):
+    r.set_encoding(encoding="latin-1", errors="unknown")
+  r.feed(b"+\xc3\xa9\r\n")
+  assert "\xe9" == r.gets()  # still utf-8
+
+def test_init_applies_all_arguments_or_none():
+  r = hiredis.Reader(replyError=ValueError, encoding="utf-8")
+  with pytest.raises(LookupError):
+    r.__init__(replyError=KeyError, encoding="unknown")
+  r.feed(b"-ERR\r\n+\xc3\xa9\r\n")
+  assert type(r.gets()) is ValueError  # not replaced
+  assert "\xe9" == r.gets()  # still utf-8
+
 def test_encoding_arguments_may_be_freed():
   # The strings are built at runtime so that nothing else keeps them alive. The
   # Reader must not rely on them after the call, so reuse their memory.

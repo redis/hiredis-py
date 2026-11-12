@@ -5,6 +5,8 @@ they check invariants that must also hold with the GIL, so they run on every
 interpreter.
 """
 
+import codecs
+import itertools
 import os
 import platform
 import subprocess
@@ -19,10 +21,11 @@ import hiredis
 
 FREE_THREADED = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
-# These rely on an object being finalized as soon as its last reference is dropped.
+# These rely on CPython's reference counting (an object is finalized as soon as its
+# last reference is dropped) and on how it looks codecs up.
 cpython_only = pytest.mark.skipif(
     platform.python_implementation() != "CPython",
-    reason="relies on reference counting",
+    reason="relies on CPython internals",
 )
 
 THREADS = 4
@@ -352,10 +355,9 @@ def test_reinitialize_installs_the_new_sentinel_before_releasing_the_old():
     assert len(seen) == 1 and seen[0] is sentinel
 
 
-@cpython_only
-def test_reinitialize_while_a_finalizer_of_the_old_callable_blocks():
-    """Another thread can re-initialize a Reader whose __init__() is paused in the
-    __del__ of the callable it replaced."""
+def reinitialize_in_two_threads(old, first, second):
+    """Re-initialize a Reader in one thread, which pauses in the __del__ of the
+    object `old` (a Reader argument) held, and then in another; returns the Reader."""
     created, entered, release = (threading.Event() for _ in range(3))
     readers, errors = [], []
 
@@ -367,24 +369,104 @@ def test_reinitialize_while_a_finalizer_of_the_old_callable_blocks():
             entered.set()
             release.wait(TIMEOUT)
 
-    def first():
-        # Created here so that this thread owns the callable and finalizes it.
+    def run_first():
+        # Created here so that this thread owns the object and finalizes it.
         try:
-            readers.append(hiredis.Reader(replyError=Blocking()))
+            readers.append(hiredis.Reader(**{old: Blocking()}))
             created.set()
-            readers[0].__init__(replyError=ConnectionError)
+            readers[0].__init__(**first)
         except BaseException as exc:
             errors.append(exc)
 
-    thread = threading.Thread(target=first, daemon=True)
+    thread = threading.Thread(target=run_first, daemon=True)
     thread.start()
     try:
         assert created.wait(TIMEOUT) and entered.wait(TIMEOUT)
-        readers[0].__init__(replyError=KeyError)
+        readers[0].__init__(**second)
     finally:
         release.set()
         thread.join(TIMEOUT)
 
     assert not thread.is_alive() and not errors, errors
-    readers[0].feed(b"-ERR\r\n")
-    assert type(readers[0].gets()) is KeyError
+    return readers[0]
+
+
+@cpython_only
+def test_reinitialize_while_a_finalizer_of_the_old_callable_blocks():
+    """Another thread can re-initialize a Reader whose __init__() is paused in the
+    __del__ of the callable it replaced."""
+    reader = reinitialize_in_two_threads(
+        "replyError",
+        {"replyError": ConnectionError},
+        {"replyError": KeyError},
+    )
+    reader.feed(b"-ERR\r\n")
+    assert type(reader.gets()) is KeyError
+
+
+@cpython_only
+def test_concurrent_reinitialize_leaves_one_whole_configuration():
+    """A paused __init__() cannot overwrite part of one that completed meanwhile."""
+    reader = reinitialize_in_two_threads(
+        "protocolError",
+        {"protocolError": OSError, "replyError": IndexError, "encoding": "latin-1"},
+        {"protocolError": ValueError, "replyError": KeyError, "encoding": "utf-8"},
+    )
+    reader.feed(b"-ERR\r\n$2\r\n\xc3\xa9\r\n!\r\n")
+    assert type(reader.gets()) is KeyError
+    assert reader.gets() == "\xe9"
+    with pytest.raises(ValueError):
+        reader.gets()
+
+
+slow_codecs = itertools.count()
+
+
+@cpython_only
+def test_reinitialize_is_refused_if_gets_starts_while_it_looks_up_a_codec():
+    """Looking a codec up runs Python code, so a gets() can start in the middle of
+    __init__(); the callables it is calling must not be replaced under it."""
+    name = "hiredis_test_slow_codec_%d" % next(slow_codecs)  # new: lookups are cached
+    in_lookup, proceed, init_done = (threading.Event() for _ in range(3))
+    init_errors = []
+
+    def search(requested):
+        if requested != name:
+            return None
+        in_lookup.set()
+        proceed.wait(TIMEOUT)
+        return codecs.lookup("utf-8")
+
+    codecs.register(search)
+
+    def reply_error(message):
+        proceed.set()  # lets __init__() finish its lookup, now that gets() is running
+        init_done.wait(TIMEOUT)
+        return ValueError(message)
+
+    reader = hiredis.Reader(replyError=reply_error)
+
+    def reinitialize():
+        try:
+            reader.__init__(replyError=ConnectionError, encoding=name)
+        except BaseException as exc:
+            init_errors.append(exc)
+        init_done.set()
+
+    thread = threading.Thread(target=reinitialize, daemon=True)
+    thread.start()
+    try:
+        assert in_lookup.wait(TIMEOUT)
+        reader.feed(b"-ERR\r\n")
+        reply = reader.gets()
+    finally:
+        proceed.set()
+        init_done.wait(TIMEOUT)
+        thread.join(TIMEOUT)
+        if hasattr(codecs, "unregister"):  # Python 3.10+
+            codecs.unregister(search)
+
+    assert not thread.is_alive()
+    assert type(reply) is ValueError and str(reply) == "ERR"
+    assert len(init_errors) == 1 and isinstance(init_errors[0], RuntimeError)
+    assert "__init__" in str(init_errors[0])
