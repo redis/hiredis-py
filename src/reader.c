@@ -305,6 +305,18 @@ static int Reader_traverse(hiredis_ReaderObject *self, visitproc visit, void *ar
     return 0;
 }
 
+/* Makes *target hold a new reference to value. The old object is released only
+ * after the field is updated: releasing it can run Python code (a __del__
+ * method), which can use or re-initialize this Reader, from another thread as
+ * well while this one is paused, and must find it consistent. */
+static void _Reader_replace_object(PyObject **target, PyObject *value) {
+    PyObject *old = *target;
+
+    Py_INCREF(value);
+    *target = value;
+    Py_DECREF(old);
+}
+
 static int _Reader_set_exception(PyObject **target, PyObject *value) {
     int callable;
     callable = PyCallable_Check(value);
@@ -314,9 +326,7 @@ static int _Reader_set_exception(PyObject **target, PyObject *value) {
         return 0;
     }
 
-    Py_DECREF(*target);
-    *target = value;
-    Py_INCREF(*target);
+    _Reader_replace_object(target, value);
     return 1;
 }
 
@@ -422,12 +432,8 @@ static int Reader_init_impl(hiredis_ReaderObject *self, PyObject *args, PyObject
         if (!_Reader_set_exception(&self->replyErrorClass, replyErrorClass))
             return -1;
 
-    if (notEnoughData) {
-        Py_DECREF(self->notEnoughDataObject);
-        self->notEnoughDataObject = notEnoughData;
-
-        Py_INCREF(self->notEnoughDataObject);
-    }
+    if (notEnoughData)
+        _Reader_replace_object(&self->notEnoughDataObject, notEnoughData);
 
     return _Reader_set_encoding(self, encoding, errors);
 }

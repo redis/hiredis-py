@@ -6,6 +6,7 @@ interpreter.
 """
 
 import os
+import platform
 import subprocess
 import sys
 import sysconfig
@@ -17,6 +18,12 @@ import pytest
 import hiredis
 
 FREE_THREADED = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+
+# These rely on an object being finalized as soon as its last reference is dropped.
+cpython_only = pytest.mark.skipif(
+    platform.python_implementation() != "CPython",
+    reason="relies on reference counting",
+)
 
 THREADS = 4
 ARRAY_LEN = 16
@@ -311,3 +318,73 @@ def test_reader_is_idle_again_after_gets_fails():
     for _ in range(2):  # a protocol error is permanent, but it is still that error
         with pytest.raises(hiredis.ProtocolError):
             reader.gets()
+
+
+@cpython_only
+def test_reinitialize_installs_the_new_callable_before_releasing_the_old():
+    """Releasing the old callable runs its __del__, which can use the Reader."""
+    seen = []
+
+    class OldReplyError:
+        def __call__(self, message):
+            return ValueError("old " + message)
+
+        def __del__(self):
+            reader.feed(b"-ERR\r\n")
+            seen.append(str(reader.gets()))
+
+    reader = hiredis.Reader(replyError=OldReplyError())
+    reader.__init__(replyError=lambda message: ValueError("new " + message))
+    assert seen == ["new ERR"]
+
+
+@cpython_only
+def test_reinitialize_installs_the_new_sentinel_before_releasing_the_old():
+    seen = []
+
+    class OldSentinel:
+        def __del__(self):
+            seen.append(reader.gets())
+
+    sentinel = object()
+    reader = hiredis.Reader(notEnoughData=OldSentinel())
+    reader.__init__(notEnoughData=sentinel)
+    assert len(seen) == 1 and seen[0] is sentinel
+
+
+@cpython_only
+def test_reinitialize_while_a_finalizer_of_the_old_callable_blocks():
+    """Another thread can re-initialize a Reader whose __init__() is paused in the
+    __del__ of the callable it replaced."""
+    created, entered, release = (threading.Event() for _ in range(3))
+    readers, errors = [], []
+
+    class Blocking:
+        def __call__(self, message):
+            return ValueError(message)
+
+        def __del__(self):
+            entered.set()
+            release.wait(TIMEOUT)
+
+    def first():
+        # Created here so that this thread owns the callable and finalizes it.
+        try:
+            readers.append(hiredis.Reader(replyError=Blocking()))
+            created.set()
+            readers[0].__init__(replyError=ConnectionError)
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=first, daemon=True)
+    thread.start()
+    try:
+        assert created.wait(TIMEOUT) and entered.wait(TIMEOUT)
+        readers[0].__init__(replyError=KeyError)
+    finally:
+        release.set()
+        thread.join(TIMEOUT)
+
+    assert not thread.is_alive() and not errors, errors
+    readers[0].feed(b"-ERR\r\n")
+    assert type(readers[0].gets()) is KeyError
