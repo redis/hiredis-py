@@ -21,7 +21,7 @@ jobs:
      runs-on: ${{ matrix.os }}
      strategy:
        matrix:
-         os: [ubuntu-latest, windows-latest, windows-11-arm, macos-latest]
+         os: [ubuntu-24.04, windows-latest, windows-11-arm, macos-latest]
      env:
        CIBW_ARCHS_MACOS: "x86_64 universal2 arm64"
        MACOSX_DEPLOYMENT_TARGET: "10.15"
@@ -57,7 +57,7 @@ jobs:
 
     build_sdist:
      name: Build source dist
-     runs-on: ubuntu-latest
+     runs-on: ubuntu-24.04
      steps:
        - uses: actions/setup-python@v6
          with:
@@ -77,7 +77,7 @@ jobs:
      name: Pypi publish
      if: ${{inputs.release == true}}
      needs: ['build_wheels', 'build_sdist']
-     runs-on: ubuntu-latest
+     runs-on: ubuntu-24.04
      steps:
        - uses: actions/setup-python@v6
          with:
@@ -87,7 +87,7 @@ jobs:
            pip install twine wheel
        - uses: actions/download-artifact@v6
          with:
-           name: ubuntu-latest-wheels
+           name: ubuntu-24.04-wheels
            path: artifacts/linux
        - uses: actions/download-artifact@v6
          with:

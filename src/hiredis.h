@@ -8,6 +8,14 @@
 #define PyMODINIT_FUNC void
 #endif
 
+/* Per-object critical sections (PEP 703). Python.h defines these on CPython
+ * 3.13+, where they only do something in free-threaded builds. Elsewhere (older
+ * CPython, PyPy) the GIL already serializes access, so they are no-ops. */
+#ifndef Py_BEGIN_CRITICAL_SECTION
+#define Py_BEGIN_CRITICAL_SECTION(op) {
+#define Py_END_CRITICAL_SECTION() }
+#endif
+
 #ifndef MOD_HIREDIS
 #define MOD_HIREDIS "hiredis"
 #endif

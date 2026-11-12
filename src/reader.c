@@ -122,7 +122,17 @@ static PyObject *createDecodedString(hiredis_ReaderObject *self, const char *str
     if (self->encoding == NULL || !self->shouldDecode) {
         obj = PyBytes_FromStringAndSize(str, len);
     } else {
-        obj = PyUnicode_Decode(str, len, self->encoding, self->errors);
+        /* Decoding can run Python code (a codec or an error handler) that
+         * replaces this Reader's encoding, so hold references to the names. */
+        PyObject *encoding = self->encoding;
+        PyObject *errors = self->errors;
+
+        Py_INCREF(encoding);
+        Py_XINCREF(errors);
+        obj = PyUnicode_Decode(str, len, PyBytes_AsString(encoding),
+                               errors ? PyBytes_AsString(errors) : NULL);
+        Py_DECREF(encoding);
+        Py_XDECREF(errors);
         if (obj == NULL) {
             /* Store error when this is the first. */
             if (self->error.ptype == NULL)
@@ -278,8 +288,8 @@ redisReplyObjectFunctions hiredis_ObjectFunctions = {
 
 static void Reader_dealloc(hiredis_ReaderObject *self) {
     PyObject_GC_UnTrack(self);
-    // we don't need to free self->encoding as the buffer is managed by Python
-    // https://docs.python.org/3/c-api/arg.html#strings-and-buffers
+    Py_CLEAR(self->encoding);
+    Py_CLEAR(self->errors);
     redisReaderFree(self->reader);
     Py_CLEAR(self->protocolErrorClass);
     Py_CLEAR(self->replyErrorClass);
@@ -295,23 +305,24 @@ static int Reader_traverse(hiredis_ReaderObject *self, visitproc visit, void *ar
     return 0;
 }
 
-static int _Reader_set_exception(PyObject **target, PyObject *value) {
-    int callable;
-    callable = PyCallable_Check(value);
-
-    if (callable == 0) {
+static int _Reader_check_callable(PyObject *value) {
+    if (!PyCallable_Check(value)) {
         PyErr_SetString(PyExc_TypeError, "Expected a callable");
         return 0;
     }
-
-    Py_DECREF(*target);
-    *target = value;
-    Py_INCREF(*target);
     return 1;
 }
 
-static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char *errors) {
+/* Checks that the codec and the error handler exist (LookupError if not) and
+ * copies the names into new bytes objects, NULL for a NULL name. The "z" format
+ * of PyArg_Parse*() hands out a pointer into the argument object, which can be
+ * freed as soon as the call returns, so the Reader must not keep that pointer.
+ * Looking a codec up can run Python code, so this does not change the Reader:
+ * what it prepares is installed afterwards, in one step. */
+static int _Reader_prepare_names(const char *encoding, const char *errors,
+                                 PyObject **encodingName, PyObject **errorsName) {
     PyObject *codecs, *result;
+    PyObject *encodingCopy = NULL, *errorsCopy = NULL;
 
     if (encoding) {  // validate that the encoding exists, raises LookupError if not
         codecs = PyImport_ImportModule("codecs");
@@ -322,11 +333,7 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         if (!result)
             return -1;
         Py_DECREF(result);
-        self->encoding = encoding;
-    } else {
-        self->encoding = NULL;
     }
-
     if (errors) {   // validate that the error handler exists, raises LookupError if not
         codecs = PyImport_ImportModule("codecs");
         if (!codecs)
@@ -336,42 +343,154 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         if (!result)
             return -1;
         Py_DECREF(result);
-        self->errors = errors;
-    } else {
-        self->errors = "strict";
     }
 
+    if (encoding) {
+        encodingCopy = PyBytes_FromStringAndSize(encoding, strlen(encoding));
+        if (!encodingCopy)
+            return -1;
+    }
+    // NULL errors means "strict", which is what PyUnicode_Decode() assumes
+    if (errors) {
+        errorsCopy = PyBytes_FromStringAndSize(errors, strlen(errors));
+        if (!errorsCopy) {
+            Py_XDECREF(encodingCopy);
+            return -1;
+        }
+    }
+    *encodingName = encodingCopy;
+    *errorsName = errorsCopy;
     return 0;
 }
 
-static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+/* Replaces the encoding and errors names, both or neither. They are bytes
+ * objects that are replaced and never modified, so a decode that holds its own
+ * references to them is not affected. */
+static int _Reader_set_encoding(hiredis_ReaderObject *self, const char *encoding, const char *errors) {
+    PyObject *encodingName, *errorsName, *oldEncoding, *oldErrors;
+
+    if (_Reader_prepare_names(encoding, errors, &encodingName, &errorsName) == -1)
+        return -1;
+    oldEncoding = self->encoding;
+    oldErrors = self->errors;
+    self->encoding = encodingName;
+    self->errors = errorsName;
+    Py_XDECREF(oldEncoding);
+    Py_XDECREF(oldErrors);
+    return 0;
+}
+
+/* Thread safety on free-threaded builds
+ *
+ * A Reader holds mutable state (the hiredis buffer and parse stack, the decode
+ * settings and a stashed error) that must not be touched by two threads at
+ * once. Every method that reads or writes it runs inside a critical section on
+ * the Reader (Py_BEGIN_CRITICAL_SECTION), which makes each call atomic with
+ * respect to the others. With a GIL these are no-ops.
+ *
+ * A critical section is released while its thread is paused: when it blocks, or
+ * when the interpreter stops the world (a GC run started by any thread). That
+ * can happen while Python code runs inside gets(): a protocolError/replyError
+ * callable, a custom codec or an error handler. Another thread could then enter
+ * the parser in the middle of a reply and take or corrupt it, as it can with a
+ * GIL when the interpreter switches threads. The parser cannot be re-entered:
+ * gets() would take the reply being built, feed() can move the buffer that a
+ * decode is reading, and __init__() replaces the callables being called. So
+ * gets() marks the Reader busy while it runs, and feed(), gets() and __init__()
+ * raise RuntimeError if they are called in the meantime, from the callback
+ * itself or from another thread. The other methods only read or replace single
+ * fields, and a decode in progress holds its own references to the encoding and
+ * errors names, so they stay safe.
+ *
+ * __init__() and set_encoding() can pause too: looking up a codec can run Python
+ * code, and so can releasing an object they replace (a __del__ method). They
+ * therefore prepare everything first, install it all in one step and only then
+ * release what was replaced, so that a paused call leaves nothing half applied
+ * and Python code or another thread finds the Reader complete. */
+
+/* Raises RuntimeError if a gets() call is still running on this Reader. */
+static int Reader_check_idle(hiredis_ReaderObject *self, const char *method) {
+    if (self->busy) {
+        PyErr_Format(PyExc_RuntimeError,
+                     "Reader.%s() called while Reader.gets() is still running "
+                     "on this Reader, from a callback or another thread",
+                     method);
+        return -1;
+    }
+    return 0;
+}
+
+static int Reader_init_impl(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
     static char *kwlist[] = { "protocolError", "replyError", "encoding", "errors", "notEnoughData", NULL };
     PyObject *protocolErrorClass = NULL;
     PyObject *replyErrorClass = NULL;
     PyObject *notEnoughData = NULL;
     char *encoding = NULL;
     char *errors = NULL;
+    PyObject *encodingName, *errorsName;
+    PyObject *oldProtocolError = NULL, *oldReplyError = NULL, *oldNotEnoughData = NULL;
+    PyObject *oldEncoding, *oldErrors;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OOzzO", kwlist,
         &protocolErrorClass, &replyErrorClass, &encoding, &errors, &notEnoughData))
             return -1;
 
-    if (protocolErrorClass)
-        if (!_Reader_set_exception(&self->protocolErrorClass, protocolErrorClass))
-            return -1;
+    /* Check and prepare all of it before changing anything: a call applies all
+     * of its arguments or none of them. */
+    if (protocolErrorClass && !_Reader_check_callable(protocolErrorClass))
+        return -1;
+    if (replyErrorClass && !_Reader_check_callable(replyErrorClass))
+        return -1;
+    if (_Reader_prepare_names(encoding, errors, &encodingName, &errorsName) == -1)
+        return -1;
 
-    if (replyErrorClass)
-        if (!_Reader_set_exception(&self->replyErrorClass, replyErrorClass))
-            return -1;
-
-    if (notEnoughData) {
-        Py_DECREF(self->notEnoughDataObject);
-        self->notEnoughDataObject = notEnoughData;
-
-        Py_INCREF(self->notEnoughDataObject);
+    /* Preparing the names can run Python code, during which another thread can
+     * start gets(). Its callables must not be replaced while it runs. */
+    if (Reader_check_idle(self, "__init__") == -1) {
+        Py_XDECREF(encodingName);
+        Py_XDECREF(errorsName);
+        return -1;
     }
 
-    return _Reader_set_encoding(self, encoding, errors);
+    /* Install all of it first and release what it replaces afterwards.
+     * Releasing an old object can run Python code (a __del__ method) and pause
+     * this thread, and by then the Reader must hold the whole new configuration:
+     * another thread's __init__() can complete in the meantime, and the rest of
+     * this one must not overwrite it. */
+    if (protocolErrorClass) {
+        oldProtocolError = self->protocolErrorClass;
+        Py_INCREF(protocolErrorClass);
+        self->protocolErrorClass = protocolErrorClass;
+    }
+    if (replyErrorClass) {
+        oldReplyError = self->replyErrorClass;
+        Py_INCREF(replyErrorClass);
+        self->replyErrorClass = replyErrorClass;
+    }
+    if (notEnoughData) {
+        oldNotEnoughData = self->notEnoughDataObject;
+        Py_INCREF(notEnoughData);
+        self->notEnoughDataObject = notEnoughData;
+    }
+    oldEncoding = self->encoding;
+    oldErrors = self->errors;
+    self->encoding = encodingName;
+    self->errors = errorsName;
+
+    Py_XDECREF(oldProtocolError);
+    Py_XDECREF(oldReplyError);
+    Py_XDECREF(oldNotEnoughData);
+    Py_XDECREF(oldEncoding);
+    Py_XDECREF(oldErrors);
+    return 0;
+}
+
+static int Reader_init(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+    int res;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    res = Reader_init_impl(self, args, kwds);
+    Py_END_CRITICAL_SECTION();
+    return res;
 }
 
 static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -383,9 +502,10 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         self->reader->privdata = self;
 
         self->encoding = NULL;
-        self->errors = "strict";  // default to "strict" to mimic Python
+        self->errors = NULL;  // NULL means "strict" to PyUnicode_Decode()
         self->notEnoughDataObject = Py_False;
         self->shouldDecode = 1;
+        self->busy = 0;
         self->protocolErrorClass = HIREDIS_STATE->HiErr_ProtocolError;
         self->replyErrorClass = HIREDIS_STATE->HiErr_ReplyError;
         Py_INCREF(self->protocolErrorClass);
@@ -403,6 +523,7 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
     Py_buffer buf;
     Py_ssize_t off = 0;
     Py_ssize_t len = -1;
+    int refused;
 
     if (!PyArg_ParseTuple(args, "s*|nn", &buf, &off, &len)) {
         return NULL;
@@ -422,8 +543,14 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
       goto error;
     }
 
-    redisReaderFeed(self->reader, (char *)buf.buf + off, len);
+    Py_BEGIN_CRITICAL_SECTION(self);
+    refused = Reader_check_idle(self, "feed");
+    if (!refused)
+        redisReaderFeed(self->reader, (char *)buf.buf + off, len);
+    Py_END_CRITICAL_SECTION();
     PyBuffer_Release(&buf);
+    if (refused)
+        return NULL;
     Py_RETURN_NONE;
 
 error:
@@ -431,7 +558,7 @@ error:
     return NULL;
 }
 
-static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
+static PyObject *Reader_gets_impl(hiredis_ReaderObject *self, PyObject *args) {
     PyObject *obj;
 
     self->shouldDecode = 1;
@@ -478,6 +605,18 @@ static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
     }
 }
 
+static PyObject *Reader_gets(hiredis_ReaderObject *self, PyObject *args) {
+    PyObject *res = NULL;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    if (Reader_check_idle(self, "gets") == 0) {
+        self->busy = 1;
+        res = Reader_gets_impl(self, args);
+        self->busy = 0;
+    }
+    Py_END_CRITICAL_SECTION();
+    return res;
+}
+
 static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg) {
     long maxbuf;
 
@@ -492,27 +631,41 @@ static PyObject *Reader_setmaxbuf(hiredis_ReaderObject *self, PyObject *arg) {
             return NULL;
         }
     }
+    Py_BEGIN_CRITICAL_SECTION(self);
     self->reader->maxbuf = maxbuf;
+    Py_END_CRITICAL_SECTION();
 
     Py_INCREF(Py_None);
     return Py_None;
 }
 
 static PyObject *Reader_getmaxbuf(hiredis_ReaderObject *self) {
-    return PyLong_FromSize_t(self->reader->maxbuf);
+    size_t maxbuf;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    maxbuf = self->reader->maxbuf;
+    Py_END_CRITICAL_SECTION();
+    return PyLong_FromSize_t(maxbuf);
 }
 
 static PyObject *Reader_len(hiredis_ReaderObject *self) {
-    return PyLong_FromSize_t(self->reader->len);
+    size_t len;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    len = self->reader->len;
+    Py_END_CRITICAL_SECTION();
+    return PyLong_FromSize_t(len);
 }
 
 static PyObject *Reader_has_data(hiredis_ReaderObject *self) {
-    if(self->reader->pos < self->reader->len)
+    int has_data;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    has_data = self->reader->pos < self->reader->len;
+    Py_END_CRITICAL_SECTION();
+    if (has_data)
         Py_RETURN_TRUE;
     Py_RETURN_FALSE;
 }
 
-static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+static PyObject *Reader_set_encoding_impl(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
     static char *kwlist[] = { "encoding", "errors", NULL };
     char *encoding = NULL;
     char *errors = NULL;
@@ -525,4 +678,12 @@ static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args,
 
     Py_RETURN_NONE;
 
+}
+
+static PyObject *Reader_set_encoding(hiredis_ReaderObject *self, PyObject *args, PyObject *kwds) {
+    PyObject *res;
+    Py_BEGIN_CRITICAL_SECTION(self);
+    res = Reader_set_encoding_impl(self, args, kwds);
+    Py_END_CRITICAL_SECTION();
+    return res;
 }

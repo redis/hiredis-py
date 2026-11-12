@@ -1,3 +1,5 @@
+import platform
+
 import hiredis
 import pytest
 
@@ -45,3 +47,34 @@ def test_wrong_type():
 
     with pytest.raises(TypeError):
         hiredis.pack_command(("HSET", "foo", Bar()))
+
+
+# How a memoryview reports being released or non-contiguous is specific to CPython.
+cpython_only = pytest.mark.skipif(
+    platform.python_implementation() != "CPython",
+    reason="memoryview export rules differ on other implementations",
+)
+
+
+@cpython_only
+def test_memoryview_slice():
+    view = memoryview(bytearray(b"hello world"))[6:]
+    assert (
+        hiredis.pack_command(("SET", "key", view))
+        == b"*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nworld\r\n"
+    )
+
+
+@cpython_only
+def test_released_memoryview():
+    view = memoryview(b"value")
+    view.release()
+    with pytest.raises(ValueError):
+        hiredis.pack_command(("SET", "key", view))
+
+
+@cpython_only
+def test_non_contiguous_memoryview():
+    view = memoryview(b"abcdef")[::2]
+    with pytest.raises(BufferError):
+        hiredis.pack_command(("SET", "key", view))
