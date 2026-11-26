@@ -3,6 +3,7 @@
 [![Build Status](https://github.com/redis/hiredis-py/actions/workflows/integration.yaml/badge.svg)](https://github.com/redis/hiredis-py/actions/workflows/integration.yaml)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![pypi](https://badge.fury.io/py/hiredis.svg)](https://pypi.org/project/hiredis/)
+[![Protected by Tracebit Community Edition](.github/assets/tracebit-badge.svg)](https://community.tracebit.com/supplychainattacks)
 
 Python extension that wraps protocol parsing code in [hiredis][hiredis].
 It primarily speeds up parsing of multi bulk replies.
