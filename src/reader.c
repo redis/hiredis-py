@@ -278,8 +278,8 @@ redisReplyObjectFunctions hiredis_ObjectFunctions = {
 
 static void Reader_dealloc(hiredis_ReaderObject *self) {
     PyObject_GC_UnTrack(self);
-    // we don't need to free self->encoding as the buffer is managed by Python
-    // https://docs.python.org/3/c-api/arg.html#strings-and-buffers
+    PyMem_Free(self->encoding);
+    PyMem_Free(self->errors);
     redisReaderFree(self->reader);
     Py_CLEAR(self->protocolErrorClass);
     Py_CLEAR(self->replyErrorClass);
@@ -310,6 +310,26 @@ static int _Reader_set_exception(PyObject **target, PyObject *value) {
     return 1;
 }
 
+/* The char* that PyArg_Parse* hands out for "z" points into the str it was
+ * converted from and dies with it, so the Reader has to keep its own copy. */
+static int _Reader_own_string(char **target, const char *value) {
+    char *copy = NULL;
+
+    if (value != NULL) {
+        size_t size = strlen(value) + 1;
+        copy = PyMem_Malloc(size);
+        if (copy == NULL) {
+            PyErr_NoMemory();
+            return -1;
+        }
+        memcpy(copy, value, size);
+    }
+
+    PyMem_Free(*target);
+    *target = copy;
+    return 0;
+}
+
 static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char *errors) {
     PyObject *codecs, *result;
 
@@ -322,10 +342,10 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         if (!result)
             return -1;
         Py_DECREF(result);
-        self->encoding = encoding;
-    } else {
-        self->encoding = NULL;
     }
+
+    if (_Reader_own_string(&self->encoding, encoding) == -1)
+        return -1;
 
     if (errors) {   // validate that the error handler exists, raises LookupError if not
         codecs = PyImport_ImportModule("codecs");
@@ -336,10 +356,11 @@ static int _Reader_set_encoding(hiredis_ReaderObject *self, char *encoding, char
         if (!result)
             return -1;
         Py_DECREF(result);
-        self->errors = errors;
-    } else {
-        self->errors = "strict";
     }
+
+    // default to "strict" to mimic Python
+    if (_Reader_own_string(&self->errors, errors ? errors : "strict") == -1)
+        return -1;
 
     return 0;
 }
@@ -383,7 +404,7 @@ static PyObject *Reader_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         self->reader->privdata = self;
 
         self->encoding = NULL;
-        self->errors = "strict";  // default to "strict" to mimic Python
+        self->errors = NULL;  // Reader_init installs the "strict" default
         self->notEnoughDataObject = Py_False;
         self->shouldDecode = 1;
         self->protocolErrorClass = HIREDIS_STATE->HiErr_ProtocolError;

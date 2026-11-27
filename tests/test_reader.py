@@ -312,6 +312,36 @@ def test_set_encoding_invalid_error_handler():
   with pytest.raises(LookupError):
     r.set_encoding(encoding="utf-8", errors="unknown")
 
+def test_encoding_name_outlives_the_string_it_came_from():
+  snowman = b"\xe2\x98\x83"
+  # Built at runtime, so the name is neither interned nor held by a code object
+  # and is released once the constructor returns.
+  r = hiredis.Reader(encoding="".join(["u", "t", "f", "-", "8"]))
+  # Same size as "utf-8", so it takes over the allocation just released.
+  reuse = "".join(["l", "a", "t", "i", "n", "1"])
+  r.feed(b"$3\r\n" + snowman + b"\r\n")
+  decoded = r.gets()
+  assert snowman.decode(reuse) != decoded
+  assert snowman.decode("utf-8") == decoded
+
+def test_errors_name_outlives_the_string_it_came_from():
+  r = hiredis.Reader(encoding="utf-8", errors="".join(["i", "g", "n", "o", "r", "e"]))
+  # Same size as "ignore", so it takes over the allocation just released.
+  reuse = "".join(["s", "t", "r", "i", "c", "t"])
+  r.feed(b"+\x80value\r\n")
+  assert "value" == r.gets()
+  assert reuse == "strict"
+
+def test_set_encoding_name_outlives_the_string_it_came_from():
+  snowman = b"\xe2\x98\x83"
+  r = hiredis.Reader()
+  r.set_encoding(encoding="".join(["u", "t", "f", "-", "8"]))
+  reuse = "".join(["l", "a", "t", "i", "n", "1"])
+  r.feed(b"$3\r\n" + snowman + b"\r\n")
+  decoded = r.gets()
+  assert snowman.decode(reuse) != decoded
+  assert snowman.decode("utf-8") == decoded
+
 def test_null_multi_bulk(reader):
   reader.feed(b"*-1\r\n")
   assert reader.gets() is None
