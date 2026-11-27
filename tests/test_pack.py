@@ -45,3 +45,12 @@ def test_wrong_type():
 
     with pytest.raises(TypeError):
         hiredis.pack_command(("HSET", "foo", Bar()))
+
+
+def test_non_contiguous_memoryview():
+    # A reversed memoryview starts at the last byte of its buffer, so copying
+    # nbytes forward from it reads past the end of the bytearray.
+    view = memoryview(bytearray(b"0123456789abcdef"))[::-1]
+
+    with pytest.raises(BufferError):
+        hiredis.pack_command(("SET", "a", view))
