@@ -417,7 +417,7 @@ static PyObject *Reader_feed(hiredis_ReaderObject *self, PyObject *args) {
       goto error;
     }
 
-    if ((off + len) > buf.len) {
+    if (off > buf.len || len > buf.len - off) {
       PyErr_SetString(PyExc_ValueError, "input is larger than buffer size");
       goto error;
     }
